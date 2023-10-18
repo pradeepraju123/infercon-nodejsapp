@@ -1,0 +1,18 @@
+{
+  "name": "nodejsbackend",
+  "version": "1.0.0",
+  "description": "Pradeep infercon backend",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Pradeep Raju",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "mongoose": "^7.6.3",
+    "mysql2": "^1.7.0",
+    "sequelize": "^6.33.0"
+  }
+}
