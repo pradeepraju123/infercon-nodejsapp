@@ -31,10 +31,15 @@ db.mongoose
 
 // simple route
 app.get("/", (req, res) => {
-  res.json({ message: "Welcome to bezkoder application." });
+  res.json({ message: "Welcome to Infercon." });
 });
 
 require("./app/routes/tutorial.routes.js")(app);
+require("./app/routes/blog.routes.js")(app);
+require("./app/routes/generaldata.routes.js")(app);
+require("./app/routes/services.routes.js")(app);
+require("./app/routes/training.routes.js")(app);
+require("./app/routes/user.routes.js")(app);
 // set port, listen for requests
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {

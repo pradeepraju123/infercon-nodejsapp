@@ -10,6 +10,5 @@ module.exports = mongoose => {
       { timestamps: true }
     )
   );
-
   return Tutorial;
 };

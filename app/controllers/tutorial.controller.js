@@ -1,48 +1,42 @@
 const db = require("../models");
-const Tutorial = db.tutorials;
+const Tutorial = db.turorials;
 // Create and Save a new Tutorial
+
 exports.create = (req, res) => {
   // Validate request
   if (!req.body.title) {
-    res.status(400).send({ message: "Content can not be empty!" });
-    return;
+    return res.status(400).json({ status_code: 400, message: "Content can not be empty!" });
   }
 
   // Create a Tutorial
-  const tutorial = new Tutorial({
+  const turorial = new Tutorial({
     title: req.body.title,
     description: req.body.description,
-    published: req.body.published ? req.body.published : false
+    published: req.body.published || false // Use a default value if not provided
   });
 
   // Save Tutorial in the database
-  tutorial
-    .save(tutorial)
+  turorial.save()
     .then(data => {
-      res.send(data);
+      res.status(201).json({ status_code: 201, message: "Tutorial data created successfully", data: data });
     })
     .catch(err => {
-      res.status(500).send({
-        message:
-          err.message || "Some error occurred while creating the Tutorial."
-      });
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while creating the Tutorial." });
     });
 };
 
-// Retrieve all Training from the database.
+
+// Retrieve all Tutorial from the database.
 exports.findAll = (req, res) => {
   const title = req.query.title;
-  var condition = title ? { title: { $regex: new RegExp(title), $options: "i" } } : {};
+  const condition = title ? { title: { $regex: new RegExp(title), $options: "i" } } : {};
 
   Tutorial.find(condition)
     .then(data => {
-      res.send(data);
+      res.status(200).json({ status_code: 200, message: "Tutorial data retrieved successfully", data: data });
     })
     .catch(err => {
-      res.status(500).send({
-        message:
-          err.message || "Some error occurred while retrieving tutorials."
-      });
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving turoriald." });
     });
 };
 
@@ -52,23 +46,21 @@ exports.findOne = (req, res) => {
 
   Tutorial.findById(id)
     .then(data => {
-      if (!data)
-        res.status(404).send({ message: "Not found Tutorial with id " + id });
-      else res.send(data);
+      if (!data) {
+        res.status(404).json({ status_code: 404, message: "Not found Tutorial with id " + id });
+      } else {
+        res.status(200).json({ status_code: 200, message: "Tutorial data retrieved successfully", data: data });
+      }
     })
     .catch(err => {
-      res
-        .status(500)
-        .send({ message: "Error retrieving Tutorial with id=" + id });
+      res.status(500).json({ status_code: 500, message: "Error retrieving Tutorial with id=" + id });
     });
 };
 
 // Update a Tutorial by the id in the request
 exports.update = (req, res) => {
   if (!req.body) {
-    return res.status(400).send({
-      message: "Data to update can not be empty!"
-    });
+    return res.status(400).json({ status_code: 400, message: "Data to update can not be empty!" });
   }
 
   const id = req.params.id;
@@ -76,15 +68,13 @@ exports.update = (req, res) => {
   Tutorial.findByIdAndUpdate(id, req.body, { useFindAndModify: false })
     .then(data => {
       if (!data) {
-        res.status(404).send({
-          message: `Cannot update Tutorial with id=${id}. Maybe Tutorial was not found!`
-        });
-      } else res.send({ message: "Tutorial was updated successfully." });
+        res.status(404).json({ status_code: 404, message: `Cannot update Tutorial with id=${id}. Maybe Tutorial was not found!` });
+      } else {
+        res.status(200).json({ status_code: 200, message: "Tutorial was updated successfully" });
+      }
     })
     .catch(err => {
-      res.status(500).send({
-        message: "Error updating Tutorial with id=" + id
-      });
+      res.status(500).json({ status_code: 500, message: "Error updating Tutorial with id=" + id });
     });
 };
 
@@ -95,35 +85,25 @@ exports.delete = (req, res) => {
   Tutorial.findByIdAndRemove(id)
     .then(data => {
       if (!data) {
-        res.status(404).send({
-          message: `Cannot delete Tutorial with id=${id}. Maybe Tutorial was not found!`
-        });
+        res.status(404).json({ status_code: 404, message: `Cannot delete Tutorial with id=${id}. Maybe Tutorial was not found!` });
       } else {
-        res.send({
-          message: "Tutorial was deleted successfully!"
-        });
+        res.status(200).json({ status_code: 200, message: "Tutorial data was deleted successfully" });
       }
     })
     .catch(err => {
-      res.status(500).send({
-        message: "Could not delete Tutorial with id=" + id
-      });
+      res.status(500).json({ status_code: 500, message: "Could not delete Tutorial data with id=" + id });
     });
 };
+
 
 // Delete all Tutorials from the database.
 exports.deleteAll = (req, res) => {
   Tutorial.deleteMany({})
     .then(data => {
-      res.send({
-        message: `${data.deletedCount} Tutorials were deleted successfully!`
-      });
+      res.status(200).json({ status_code: 200, message: `${data.deletedCount} Tutorial data were deleted successfully` });
     })
     .catch(err => {
-      res.status(500).send({
-        message:
-          err.message || "Some error occurred while removing all tutorials."
-      });
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while removing all Tutorial" });
     });
 };
 
@@ -131,12 +111,9 @@ exports.deleteAll = (req, res) => {
 exports.findAllPublished = (req, res) => {
   Tutorial.find({ published: true })
     .then(data => {
-      res.send(data);
+      res.status(200).json({ status_code: 200, message: "Published turorial retrieved successfully", data: data });
     })
     .catch(err => {
-      res.status(500).send({
-        message:
-          err.message || "Some error occurred while retrieving tutorials."
-      });
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving published turorial" });
     });
 };
