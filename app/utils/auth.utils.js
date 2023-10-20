@@ -1,18 +1,6 @@
-const crypto = require('crypto');
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken');
 const config = require("../config/db.config.js");
-
-// Generate a random salt
-function generateSalt() {
-  return crypto.randomBytes(16).toString('hex');
-}
-
-// Encrypt a password with a given salt
-function encryptPassword(password, salt) {
-  const key = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512');
-  return key.toString('hex');
-}
 
 
 function generateToken(user) {
@@ -48,4 +36,4 @@ function authenticateToken(req, res, next) {
   });
 }
 
-module.exports = { generateSalt, encryptPassword, generateToken, hashPassword, verifyPassword, authenticateToken };
+module.exports = { generateToken, hashPassword, verifyPassword, authenticateToken };

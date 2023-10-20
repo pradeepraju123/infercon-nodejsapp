@@ -1,7 +1,6 @@
 const db = require("../models");
-const crypto = require('crypto');
 const User = db.users
-const { generateSalt, encryptPassword, hashPassword, generateToken, verifyPassword } = require('../utils/auth.utils.js');
+const { hashPassword, generateToken, verifyPassword } = require('../utils/auth.utils.js');
 // Create and Save a new Tutorial
 
 exports.create = async (req, res) => {
