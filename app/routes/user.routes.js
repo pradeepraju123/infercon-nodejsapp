@@ -11,7 +11,7 @@ module.exports = app => {
     router.post("/login", users.login);
   
     // Retrieve all Tutorials
-    router.get("/", authenticateToken, users.findAll);
+    router.get("/", users.findAll);
   
     // Retrieve all published Tutorials
     router.get("/active", users.findAllActive);
