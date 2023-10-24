@@ -1,10 +1,10 @@
 module.exports = app => {
     const services = require("../controllers/servicesdata.controller.js");
-  
+    const { authenticateToken } = require('../utils/auth.utils.js');
     var router = require("express").Router();
   
     // Create a new Tutorial
-    router.post("/", services.create);
+    router.post("/",authenticateToken, services.create);
   
     // Retrieve all Tutorials
     router.get("/", services.findAll);
@@ -16,13 +16,13 @@ module.exports = app => {
     router.get("/:id", services.findOne);
   
     // Update a Tutorial with id
-    router.put("/:id", services.update);
+    router.put("/:id",authenticateToken, services.update);
   
     // Delete a Tutorial with id
-    router.delete("/:id", services.delete);
+    router.delete("/:id",authenticateToken, services.delete);
   
     // Delete all Tutorials
-    router.delete("/", services.deleteAll);
+    router.delete("/",authenticateToken, services.deleteAll);
   
-    app.use('/api/services-data', router);
+    app.use('/api/v1/services-data', router);
   };

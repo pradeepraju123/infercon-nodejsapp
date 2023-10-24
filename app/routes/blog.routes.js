@@ -1,10 +1,10 @@
 module.exports = app => {
     const blogs = require("../controllers/blog.controller.js");
-  
+    const { authenticateToken } = require('../utils/auth.utils.js');
     var router = require("express").Router();
   
     // Create a new Tutorial
-    router.post("/", blogs.create);
+    router.post("/",authenticateToken, blogs.create);
   
     // Retrieve all Tutorials
     router.get("/", blogs.findAll);
@@ -16,13 +16,13 @@ module.exports = app => {
     router.get("/:id", blogs.findOne);
   
     // Update a Tutorial with id
-    router.put("/:id", blogs.update);
+    router.put("/:id",authenticateToken, blogs.update);
   
     // Delete a Tutorial with id
-    router.delete("/:id", blogs.delete);
+    router.delete("/:id",authenticateToken, blogs.delete);
   
     // Delete all Tutorials
-    router.delete("/", blogs.deleteAll);
+    router.delete("/",authenticateToken, blogs.deleteAll);
   
-    app.use('/api/blogs', router);
+    app.use('/api/v1/blogs', router);
   };
