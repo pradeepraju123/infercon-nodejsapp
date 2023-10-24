@@ -5,6 +5,7 @@ module.exports = mongoose => {
       mongoose.Schema(
         {
           title: String,
+          short_description: String,
           description: String,
           published: Boolean,
           image: String

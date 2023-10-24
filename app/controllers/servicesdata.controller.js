@@ -4,13 +4,37 @@ const Service = db.services;
 
 exports.create = (req, res) => {
   // Validate request
-  if (!req.body.title) {
-    return res.status(400).json({ status_code: 400, message: "Content can not be empty!" });
+  if (!req.body) {
+    return res.status(400).json({ status_code: 400, message: "Data to update can not be empty!" });
   }
+    // Validate request
+    if (!req.body.title) {
+      return res.status(400).json({ status_code: 400, message: "Title can not be empty!" });
+    }
+    if (typeof req.body.title !== 'string') {
+      return res.status(400).json({ status_code: 400, message: "Title must be a string." });
+    }
+    if (req.body.title.length < 3) {
+      return res.status(400).json({ status_code: 400, message: "Title must be at least 3 characters long." });
+    }
+      // Validate description (if provided)
+    if (req.body.short_description && typeof req.body.short_description !== 'string') {
+      return res.status(400).json({ status_code: 400, message: "Short description must be a string." });
+    }
 
+    // Validate description (if provided)
+    if (req.body.description && typeof req.body.description !== 'string') {
+      return res.status(400).json({ status_code: 400, message: "Description must be a string." });
+    }
+  
+    // Validate published (if provided)
+    if (req.body.published !== undefined && typeof req.body.published !== 'boolean') {
+      return res.status(400).json({ status_code: 400, message: "Published must be a boolean value." });
+    }
   // Create a Service
   const service = new Service({
     title: req.body.title,
+    short_description: req.body.short_description,
     description: req.body.description,
     image: req.body.image,
     published: req.body.published || false // Use a default value if not provided
@@ -60,10 +84,34 @@ exports.findOne = (req, res) => {
 
 // Update a Service by the id in the request
 exports.update = (req, res) => {
-  if (!req.body) {
-    return res.status(400).json({ status_code: 400, message: "Data to update can not be empty!" });
-  }
-
+    // Validate request
+    if (!req.body) {
+      return res.status(400).json({ status_code: 400, message: "Data to update can not be empty!" });
+    }
+      // Validate request
+      if (!req.body.title) {
+        return res.status(400).json({ status_code: 400, message: "Title can not be empty!" });
+      }
+      if (typeof req.body.title !== 'string') {
+        return res.status(400).json({ status_code: 400, message: "Title must be a string." });
+      }
+      if (req.body.title.length < 3) {
+        return res.status(400).json({ status_code: 400, message: "Title must be at least 3 characters long." });
+      }
+        // Validate description (if provided)
+      if (req.body.short_description && typeof req.body.short_description !== 'string') {
+        return res.status(400).json({ status_code: 400, message: "Short description must be a string." });
+      }
+  
+      // Validate description (if provided)
+      if (req.body.description && typeof req.body.description !== 'string') {
+        return res.status(400).json({ status_code: 400, message: "Description must be a string." });
+      }
+    
+      // Validate published (if provided)
+      if (req.body.published !== undefined && typeof req.body.published !== 'boolean') {
+        return res.status(400).json({ status_code: 400, message: "Published must be a boolean value." });
+      }
   const id = req.params.id;
 
   Service.findByIdAndUpdate(id, req.body, { useFindAndModify: false })

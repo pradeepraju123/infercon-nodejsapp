@@ -34,7 +34,6 @@ app.get("/", (req, res) => {
   res.json({ message: "Welcome to Infercon." });
 });
 
-require("./app/routes/tutorial.routes.js")(app);
 require("./app/routes/blog.routes.js")(app);
 require("./app/routes/generaldata.routes.js")(app);
 require("./app/routes/services.routes.js")(app);
