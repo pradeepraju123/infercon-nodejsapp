@@ -16,7 +16,7 @@ module.exports = app => {
     router.get("/:id", services.findOne);
   
     // Update a Tutorial with id
-    router.put("/:id",authenticateToken, services.update);
+    router.post("/:id",authenticateToken, services.update);
   
     // Delete a Tutorial with id
     router.delete("/:id",authenticateToken, services.delete);
