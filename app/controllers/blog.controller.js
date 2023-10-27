@@ -32,16 +32,19 @@ exports.create = (req, res) => {
 // Retrieve all Blog from the database.
 exports.findAll = (req, res) => {
   const title = req.query.title;
+  const limit = parseInt(req.query.limit) || 0; // Parse the 'limit' parameter as an integer
   const condition = title ? { title: { $regex: new RegExp(title), $options: "i" } } : {};
 
   Blog.find(condition)
+    .limit(limit) // Apply the 'limit' to your query
     .then(data => {
       res.status(200).json({ status_code: 200, message: "Blog data retrieved successfully", data: data });
     })
     .catch(err => {
-      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving blogd." });
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving blogs." });
     });
 };
+
 
 // Find a single Blog with an id
 exports.findOne = (req, res) => {
