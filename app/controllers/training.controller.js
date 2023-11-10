@@ -31,24 +31,34 @@ exports.create = (req, res) => {
     return res.status(400).json({ status_code: 400, message: "Published must be a boolean value." });
   }
 
-    // If an image is provided in the request {
-      // No image provided in the request
-      // Create a Training without an image URL
-      const training = new Training({
-        title: req.body.title,
-        short_description: req.body.short_description,
-        description: req.body.description,
-        image: req.body.image,
-        published: req.body.published || false
-      });
+  if (req.body.event_details && !Array.isArray(req.body.event_details)) {
+    return res.status(400).json({ status_code: 400, message: "Event details must be an array." });
+  }
   
-      training.save()
-        .then(data => {
-          res.status(201).json({ status_code: 201, message: "Training data created successfully", data: data });
-        })
-        .catch(err => {
-          res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while creating the Training." });
-        });
+  // Validate systems_used (if provided)
+  if (req.body.systems_used && !Array.isArray(req.body.systems_used)) {
+    return res.status(400).json({ status_code: 400, message: "Systems used must be an array." });
+  }
+  
+  // Create a Training with event_details and systems_used
+  const training = new Training({
+    title: req.body.title,
+    short_description: req.body.short_description,
+    description: req.body.description,
+    image: req.body.image,
+    published: req.body.published || false,
+    event_details: req.body.event_details || [],
+    systems_used: req.body.systems_used || []
+  });
+  
+  // Save the training data
+  training.save()
+    .then(data => {
+      res.status(201).json({ status_code: 201, message: "Training data created successfully", data: data });
+    })
+    .catch(err => {
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while creating the Training." });
+    });
     };
 
 // Retrieve all Training from the database.
