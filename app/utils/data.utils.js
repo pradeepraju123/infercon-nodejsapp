@@ -7,5 +7,4 @@ function isValidUrl(str) {
       return false;
     }
   }
-  
 module.exports = { isValidUrl };
