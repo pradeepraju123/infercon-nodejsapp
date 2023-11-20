@@ -5,52 +5,52 @@ const Training = db.trainings;
 // Create and Save a new Tutorial
 
 exports.create = (req, res) => {
-  // Validate request
-  if (!req.body.title) {
-    return res.status(400).json({ status_code: 400, message: "Title can not be empty!" });
-  }
-  if (typeof req.body.title !== 'string') {
-    return res.status(400).json({ status_code: 400, message: "Title must be a string." });
-  }
+    // Validate request
+    if (!req.body.title) {
+      return res.status(400).json({ status_code: 400, message: "Title can not be empty!" });
+    }
+    if (typeof req.body.title !== 'string') {
+      return res.status(400).json({ status_code: 400, message: "Title must be a string." });
+    }
   
-  if (req.body.title.length < 3) {
-    return res.status(400).json({ status_code: 400, message: "Title must be at least 3 characters long." });
-  }
-  // Validate description (if provided)
-  if (req.body.short_description && typeof req.body.short_description !== 'string') {
+    if (req.body.title.length < 3) {
+      return res.status(400).json({ status_code: 400, message: "Title must be at least 3 characters long." });
+    }
+    // Validate description (if provided)
+    if (req.body.short_description && typeof req.body.short_description !== 'string') {
       return res.status(400).json({ status_code: 400, message: "Short description must be a string." });
     }
-
-  // Validate description (if provided)
-  if (req.body.description && typeof req.body.description !== 'string') {
-    return res.status(400).json({ status_code: 400, message: "Description must be a string." });
-  }
-
-  // Validate published (if provided)
-  if (req.body.published !== undefined && typeof req.body.published !== 'boolean') {
-    return res.status(400).json({ status_code: 400, message: "Published must be a boolean value." });
-  }
-
-  if (req.body.event_details && !Array.isArray(req.body.event_details)) {
-    return res.status(400).json({ status_code: 400, message: "Event details must be an array." });
-  }
   
-  // Validate systems_used (if provided)
-  if (req.body.systems_used && !Array.isArray(req.body.systems_used)) {
-    return res.status(400).json({ status_code: 400, message: "Systems used must be an array." });
-  }
+    // Validate description (if provided)
+    if (req.body.description && typeof req.body.description !== 'string') {
+      return res.status(400).json({ status_code: 400, message: "Description must be a string." });
+    }
   
-  // Create a Training with event_details and systems_used
-  const training = new Training({
-    title: req.body.title,
-    short_description: req.body.short_description,
-    description: req.body.description,
-    image: req.body.image,
-    published: req.body.published || false,
-    event_details: req.body.event_details || [],
-    systems_used: req.body.systems_used || []
-  });
+    // Validate published (if provided)
+    if (req.body.published !== undefined && typeof req.body.published !== 'boolean') {
+      return res.status(400).json({ status_code: 400, message: "Published must be a boolean value." });
+    }
   
+    if (req.body.event_details && !Array.isArray(req.body.event_details)) {
+      return res.status(400).json({ status_code: 400, message: "Event details must be an array." });
+    }
+  
+    // Validate systems_used (if provided)
+    if (req.body.systems_used && !Array.isArray(req.body.systems_used)) {
+      return res.status(400).json({ status_code: 400, message: "Systems used must be an array." });
+    }
+  
+    // Create a Training with event_details and systems_used
+    const training = new Training({
+      title: req.body.title,
+      short_description: req.body.short_description,
+      description: req.body.description,
+      // Update image only if it is not an empty string
+      image: req.body.image !== "" ? req.body.image : undefined,
+      published: req.body.published || false,
+      event_details: req.body.event_details || [],
+      systems_used: req.body.systems_used || []
+    });
   // Save the training data
   training.save()
     .then(data => {

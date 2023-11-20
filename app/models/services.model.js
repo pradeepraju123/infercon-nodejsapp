@@ -8,7 +8,7 @@ module.exports = mongoose => {
         short_description: String,
         image: String,
         published: Boolean,
-        frequently_asked_question: [
+        comments: [
           {
             question: String,
             answer: String

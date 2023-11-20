@@ -34,12 +34,21 @@ exports.create = (req, res) => {
     return res.status(400).json({ status_code: 400, message: "Published must be a boolean value." });
   }
 
+  if (req.body.comments && !Array.isArray(req.body.comments)) {
+    return res.status(400).json({ status_code: 400, message: "Comments must be an array." });
+  }
+
+  // Validate systems_used (if provided)
+  if (req.body.questions_and_answers && !Array.isArray(req.body.questions_and_answers)) {
+    return res.status(400).json({ status_code: 400, message: "QA must be an array." });
+  }
+
   // Create a Service
   const service = new Service({
     title: req.body.title,
     short_description: req.body.short_description,
     description: req.body.description,
-    image: req.body.image,
+    image: req.body.image !== "" ? req.body.image : undefined,
     published: req.body.published || false,
     comments: [], // Initialize empty comments array
     questions_and_answers: [], // Initialize empty questions_and_answers array
