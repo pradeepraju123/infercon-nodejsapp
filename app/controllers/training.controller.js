@@ -61,19 +61,42 @@ exports.create = (req, res) => {
     });
     };
 
-// Retrieve all Training from the database.
-exports.findAll = (req, res) => {
-  const title = req.query.title;
-  const condition = title ? { title: { $regex: new RegExp(title), $options: "i" } } : {};
+// Retrieve all Training from the database with pagination.
+// Retrieve all Training from the database with pagination.
+exports.getAll = (req, res) => {
+  const { start_date, end_date, published, sort_by, page_size, page_num } = req.query;
+
+  // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
+  const pageSize = parseInt(page_size, 10) || 10;
+  const pageNum = parseInt(page_num, 10) || 1;
+
+  let condition = {};
+
+  // Add filtering conditions based on the provided parameters
+  if (start_date && end_date) {
+    condition.createdAt = { $gte: new Date(start_date), $lte: new Date(end_date) };
+  }
+
+  if (published !== undefined) {
+    condition.published = published;
+  }
+
+  // Calculate the number of documents to skip
+  const skip = (pageNum - 1) * pageSize;
 
   Training.find(condition)
+    .sort(sort_by)
+    .skip(skip)
+    .limit(pageSize)
     .then(data => {
       res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
     })
     .catch(err => {
-      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving trainingd." });
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving training data." });
     });
 };
+
+
 
 // Find a single Training with an id
 exports.findOne = (req, res) => {
@@ -91,7 +114,24 @@ exports.findOne = (req, res) => {
       res.status(500).json({ status_code: 500, message: "Error retrieving Training with id=" + id });
     });
 };
+exports.searchByTitle = (req, res) => {
+  const searchTerm = req.query.q; // Assuming the query parameter is 'q'
 
+  // Check if the search term is provided
+  if (!searchTerm || typeof searchTerm !== 'string') {
+    return res.status(400).json({ status_code: 400, message: "Invalid search term provided." });
+  }
+
+  const condition = { title: { $regex: new RegExp(searchTerm), $options: "i" } };
+
+  Training.find(condition)
+    .then(data => {
+      res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
+    })
+    .catch(err => {
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving training data." });
+    });
+};
 // Update a Training by the id in the request
 exports.update = (req, res) => {
 
