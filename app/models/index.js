@@ -11,5 +11,7 @@ db.blogs = require("./blog.model.js")(mongoose);
 db.services = require("./services.model.js")(mongoose);
 db.generaldata = require("./generalData.model.js")(mongoose);
 db.users = require("./user.model.js")(mongoose);
+db.contact = require("./contact.model.js")(mongoose);
+db.career = require("./career.model.js")(mongoose);
 
 module.exports = db;
