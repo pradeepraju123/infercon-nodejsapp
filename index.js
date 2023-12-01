@@ -41,6 +41,7 @@ require("./app/routes/training.routes.js")(app);
 require("./app/routes/user.routes.js")(app);
 require("./app/routes/contact.routes.js")(app);
 require("./app/routes/career.routes.js")(app);
+require("./app/routes/registration.routes.js")(app);
 
 // set port, listen for requests
 const PORT = process.env.PORT || 8080;
