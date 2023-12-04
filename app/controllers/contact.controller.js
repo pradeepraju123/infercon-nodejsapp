@@ -48,41 +48,54 @@ exports.create = (req, res) => {
     });
     };
 
-// // Retrieve all Training from the database with pagination.
-// exports.getAll = (req, res) => {
-//   const { start_date, end_date, published, sort_by, page_size, page_num } = req.query;
+// Retrieve all Training from the database with pagination.
+exports.getAll = (req, res) => {
+  const { start_date, end_date, search, sort_by, page_size, page_num } = req.query;
 
-//   // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
-//   const pageSize = parseInt(page_size, 10) || 10;
-//   const pageNum = parseInt(page_num, 10) || 1;
+  // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
+  const pageSize = parseInt(page_size, 10) || 10;
+  const pageNum = parseInt(page_num, 10) || 1;
 
-//   let condition = {};
+  let condition = {};
 
-//   // Add filtering conditions based on the provided parameters
-//   if (start_date && end_date) {
-//     condition.createdAt = { $gte: new Date(start_date), $lte: new Date(end_date) };
-//   }
-
-//   if (published !== undefined) {
-//     condition.published = published;
-//   }
-
-//   // Calculate the number of documents to skip
-//   const skip = (pageNum - 1) * pageSize;
-
-//   Training.find(condition)
-//     .sort(sort_by)
-//     .skip(skip)
-//     .limit(pageSize)
-//     .then(data => {
-//       res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
-//     })
-//     .catch(err => {
-//       res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving training data." });
-//     });
-// };
+  // Add filtering conditions based on the provided parameters
+  if (start_date && end_date) {
+    condition.createdAt = { $gte: new Date(start_date), $lte: new Date(end_date) };
+  }
 
 
+  if (search) {
+    // Add a search condition based on your specific requirements
+    condition.$or = [
+      { fullname: { $regex: new RegExp(search, 'i') } }, // Replace 'field1' with the actual field to search
+      { email: { $regex: new RegExp(search, 'i') } }, // Replace 'field2' with another field to search
+      { phone: { $regex: new RegExp(search, 'i') } },
+      { course: { $regex: new RegExp(search, 'i') } }
+      
+      // Add more fields as needed
+    ];
+  }
+
+  // Calculate the number of documents to skip
+  const skip = (pageNum - 1) * pageSize;
+
+  let query = Contact.find(condition);
+
+  // Make sorting by date optional
+  if (sort_by) {
+    query = query.sort(sort_by);
+  }
+
+  query
+    .skip(skip)
+    .limit(pageSize)
+    .then(data => {
+      res.status(200).json({ status_code: 200, message: "Contact data retrieved successfully", data: data });
+    })
+    .catch(err => {
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving contact." });
+    });
+};
 
 // // Find a single Training with an id
 // exports.findOne = (req, res) => {

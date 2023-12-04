@@ -5,6 +5,9 @@ module.exports = app => {
   
     // Create a new Tutorial
     router.post("/", contact.create);
+    // Retrieve all Tutorials
+    router.post("/get", contact.getAll);
   
     app.use('/api/v1/contact', router);
+    
   };
