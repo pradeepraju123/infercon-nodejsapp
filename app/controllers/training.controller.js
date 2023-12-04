@@ -61,41 +61,48 @@ exports.create = (req, res) => {
     });
     };
 
-// Retrieve all Training from the database with pagination.
-// Retrieve all Training from the database with pagination.
 exports.getAll = (req, res) => {
-  const { start_date, end_date, published, sort_by, page_size, page_num } = req.query;
-
-  // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
-  const pageSize = parseInt(page_size, 10) || 10;
-  const pageNum = parseInt(page_num, 10) || 1;
-
-  let condition = {};
-
-  // Add filtering conditions based on the provided parameters
-  if (start_date && end_date) {
-    condition.createdAt = { $gte: new Date(start_date), $lte: new Date(end_date) };
-  }
-
-  if (published !== undefined) {
-    condition.published = published;
-  }
-
-  // Calculate the number of documents to skip
-  const skip = (pageNum - 1) * pageSize;
-
-  Training.find(condition)
-    .sort(sort_by)
-    .skip(skip)
-    .limit(pageSize)
-    .then(data => {
-      res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
-    })
-    .catch(err => {
-      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving training data." });
-    });
-};
-
+      const { searchTerm, start_date, end_date, published, sort_by, page_size, page_num } = req.body;
+      console.log('Body Parameters:', req.body);
+    
+      // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
+      const pageSize = parseInt(page_size, 10) || 10;
+      const pageNum = parseInt(page_num, 10) || 1;
+    
+      let condition = {};
+    
+      if (searchTerm) {
+        condition.title = { $regex: new RegExp(searchTerm, "i") };
+      }
+    
+      // Add filtering conditions based on the provided parameters
+      if (start_date && end_date) {
+        condition.createdAt = {
+          $gte: new Date(start_date),
+          $lte: new Date(end_date), // Assuming end_date should include the entire day
+        };
+      }
+    
+      if (published !== undefined) {
+        condition.published = published;
+      }
+    
+      // Calculate the number of documents to skip
+      const skip = (pageNum - 1) * pageSize;
+    
+      Training.find(condition)
+        .sort({ [sort_by]: 1 })
+        .skip(skip)
+        .limit(pageSize)
+        .then(data => {
+          res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
+        })
+        .catch(err => {
+          console.error('Error:', err); // Log any errors
+          res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving training data." });
+        });
+    };
+    
 
 
 // Find a single Training with an id
