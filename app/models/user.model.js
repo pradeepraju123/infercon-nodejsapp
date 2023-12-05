@@ -1,3 +1,5 @@
+const { INTEGER } = require("sequelize");
+
 module.exports = mongoose => {
 
     const User = mongoose.model(
@@ -9,7 +11,8 @@ module.exports = mongoose => {
           email: String,
           password: String,
           phone_number: Number,
-          active: Boolean
+          active: Boolean,
+          type: Number
         },
         { timestamps: true }
       )

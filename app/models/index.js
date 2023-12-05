@@ -14,5 +14,6 @@ db.users = require("./user.model.js")(mongoose);
 db.contact = require("./contact.model.js")(mongoose);
 db.career = require("./career.model.js")(mongoose);
 db.registration = require("./registration.model.js")(mongoose);
+db.booking = require("./booking.model.js")(mongoose);
 
 module.exports = db;
