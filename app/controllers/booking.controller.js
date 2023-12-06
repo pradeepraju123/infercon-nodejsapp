@@ -38,7 +38,7 @@ exports.create = (req, res) => {
   booking.save()
     .then(data => {
         sendBookingNotification(data.fullname, data.email, data.phone, data.date, data.time, data.message);
-      res.status(201).json({ status_code: 201, message: "Contact created successfully", data: data });
+      res.status(201).json({ status_code: 201, message: "Booked successfully", data: data });
     })
     .catch(err => {
       res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while Generating query." });

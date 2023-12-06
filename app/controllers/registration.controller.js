@@ -1,6 +1,6 @@
 const {isValidUrl} = require('../utils/data.utils.js');
 const db = require("../models");
-const { createWhatsappMessage, createWhatsappMessageRegistration, createWhatsappfile } = require('../utils/whatsapp.utils.js');
+const {createWhatsappMessageRegistration, createWhatsappfile } = require('../utils/whatsapp.utils.js');
 const Registration = db.registration;
 // Create and Save a new Tutorial
 
@@ -44,6 +44,7 @@ exports.create = (req, res) => {
   // Save the training data
   registration.save()
     .then(data => {
+      
       createWhatsappfile(data.document)
       createWhatsappMessageRegistration(data);
       res.status(201).json({ status_code: 201, message: "Registered successfully", data: data });

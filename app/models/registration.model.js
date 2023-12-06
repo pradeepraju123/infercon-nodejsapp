@@ -4,7 +4,7 @@ module.exports = mongoose => {
       mongoose.Schema(
         {
           modeOfEducation: String,
-          courses: String,
+          courses: [],
           firstname: String,
           middlename: String,
           lastname: String,
