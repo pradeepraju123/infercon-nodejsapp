@@ -22,9 +22,9 @@ exports.create = (req, res) => {
       return res.status(400).json({ status_code: 400, message: "Phone number must be a string." });
     }
      // Validate mobile (if provided)
-     if (req.body.course && typeof req.body.course !== 'string') {
-        return res.status(400).json({ status_code: 400, message: "Course must be a string." });
-      }
+    //  if (req.body.course && typeof req.body.course !== 'string') {
+    //     return res.status(400).json({ status_code: 400, message: "Course must be a string." });
+    //   }
        // Validate mobile (if provided)
     if (req.body.message && typeof req.body.message !== 'string') {
         return res.status(400).json({ status_code: 400, message: "Message must be a string." });
@@ -34,13 +34,13 @@ exports.create = (req, res) => {
       fullname: req.body.fullname,
       email: req.body.email,
       phone: req.body.phone,
-      course: req.body.course,
+      courses: req.body.courses,
       message: req.body.message
     });
   // Save the training data
   contact.save()
     .then(data => {
-        createWhatsappMessage(data.fullname, data.email, data.phone, data.course, data.message);
+        createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message);
       res.status(201).json({ status_code: 201, message: "Contact created successfully", data: data });
     })
     .catch(err => {

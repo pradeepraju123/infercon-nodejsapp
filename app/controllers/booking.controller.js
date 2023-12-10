@@ -16,11 +16,17 @@ exports.create = (req, res) => {
     if (req.body.email && typeof req.body.email !== 'string') {
       return res.status(400).json({ status_code: 400, message: "Email must be a string." });
     }
-  
-    // Validate mobile (if provided)
-    if (req.body.phone && typeof req.body.phone !== 'string') {
-      return res.status(400).json({ status_code: 400, message: "Phone number must be a string." });
-    }
+
+    if (!req.body.phone || typeof req.body.phone !== 'string') {
+      return res.status(400).json({ status_code: 400, message: "Phone must be a string." });
+  }
+
+      // // Add phone number validation logic
+      // const phoneNumberRegex = /^\d{10}$/; // Assuming a 10-digit phone number
+      // if (!phoneNumberRegex.test(String(req.body.phone))) {
+      //     return res.status(400).json({ status_code: 400, message: "Phone number is not valid. Please provide a 10-digit number." });
+      // }
+
        // Validate mobile (if provided)
     if (req.body.message && typeof req.body.message !== 'string') {
         return res.status(400).json({ status_code: 400, message: "Message must be a string." });

@@ -6,7 +6,7 @@ module.exports = mongoose => {
           fullname: String,
           email: String,
           phone: String,
-          course: String,
+          courses: [],
           message: String
         },
         { timestamps: true }
