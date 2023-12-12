@@ -46,6 +46,9 @@ exports.create = (req, res) => {
       short_description: req.body.short_description,
       description: req.body.description,
       // Update image only if it is not an empty string
+      meta_title: req.body.meta_title,
+      keywords: req.body.keywords,
+      meta_description: req.body.meta_description,
       image: req.body.image !== "" ? req.body.image : undefined,
       published: req.body.published || false,
       event_details: req.body.event_details || [],

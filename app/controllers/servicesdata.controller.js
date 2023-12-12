@@ -48,6 +48,9 @@ exports.create = (req, res) => {
     title: req.body.title,
     short_description: req.body.short_description,
     description: req.body.description,
+    meta_title: req.body.meta_title,
+    keywords: req.body.keywords,
+    meta_description: req.body.meta_description,
     image: req.body.image !== "" ? req.body.image : undefined,
     published: req.body.published || false,
     comments: [], // Initialize empty comments array

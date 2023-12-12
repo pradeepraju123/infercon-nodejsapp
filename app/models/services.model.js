@@ -4,6 +4,9 @@ module.exports = mongoose => {
     mongoose.Schema(
       {
         title: String,
+        meta_title: String,
+        keywords: String,
+        meta_description: String,
         description: String,
         short_description: String,
         image: String,
