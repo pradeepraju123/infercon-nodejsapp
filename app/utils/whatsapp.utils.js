@@ -8,7 +8,7 @@ function createWhatsappMessage(fullname, email, phone, course, message) {
         const messageTemplate = `*New enquiry :*\n\n*Name :* ${fullname}!\n\nWe have received enquiry for this course :  ${course} course.\n\n*Information :*\n\nEmail: ${email}\nPhone: ${phone}\n\nYour Message:\n${message}`;
 
         const payload = {
-            chatId: "916381794189@c.us",
+            chatId: "120363029514494201@g.us",
             message: messageTemplate
         };
 
