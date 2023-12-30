@@ -4,7 +4,7 @@ const config = require("../config/db.config.js");
 
 
 function generateToken(user) {
-  return jwt.sign({ userId: user._id, userName: user.username }, config.secret_key, { expiresIn: '1d' });
+  return jwt.sign({ userId: user._id, userName: user.username, userType: user.userType }, config.secret_key, { expiresIn: '1d' });
 }
 
 // Function to hash a password

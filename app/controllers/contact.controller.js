@@ -35,12 +35,14 @@ exports.create = (req, res) => {
       email: req.body.email,
       phone: req.body.phone,
       courses: req.body.courses,
-      message: req.body.message
+      message: req.body.message,
+      lead_status: req.body.lead_status,
+      source : req.body.source
     });
   // Save the training data
   contact.save()
     .then(data => {
-        createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message);
+        createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message, data.source);
       res.status(201).json({ status_code: 201, message: "Contact created successfully", data: data });
     })
     .catch(err => {
@@ -50,11 +52,9 @@ exports.create = (req, res) => {
 
 // Retrieve all Training from the database with pagination.
 exports.getAll = (req, res) => {
-  const { start_date, end_date, search, sort_by, page_size, page_num } = req.query;
+  const { start_date, end_date, searchTerm, sort_by } = req.query;
 
   // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
-  const pageSize = parseInt(page_size, 10) || 10;
-  const pageNum = parseInt(page_num, 10) || 1;
 
   let condition = {};
 
@@ -64,35 +64,57 @@ exports.getAll = (req, res) => {
   }
 
 
-  if (search) {
+  if (searchTerm) {
     // Add a search condition based on your specific requirements
     condition.$or = [
-      { fullname: { $regex: new RegExp(search, 'i') } }, // Replace 'field1' with the actual field to search
-      { email: { $regex: new RegExp(search, 'i') } }, // Replace 'field2' with another field to search
-      { phone: { $regex: new RegExp(search, 'i') } },
-      { course: { $regex: new RegExp(search, 'i') } }
+      { fullname: { $regex: new RegExp(searchTerm, 'i') } }, // Replace 'field1' with the actual field to search
+      { email: { $regex: new RegExp(searchTerm, 'i') } }, // Replace 'field2' with another field to search
+      { phone: { $regex: new RegExp(searchTerm, 'i') } }
       
       // Add more fields as needed
     ];
   }
 
-  // Calculate the number of documents to skip
-  const skip = (pageNum - 1) * pageSize;
-
-  let query = Contact.find(condition);
-
-  // Make sorting by date optional
-  if (sort_by) {
-    query = query.sort(sort_by);
-  }
-
-  query
-    .skip(skip)
-    .limit(pageSize)
+  Contact.find(condition)
+    .sort({ [sort_by]: 1 })
     .then(data => {
-      res.status(200).json({ status_code: 200, message: "Contact data retrieved successfully", data: data });
+      res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
     })
     .catch(err => {
-      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving contact." });
+      console.error('Error:', err); // Log any errors
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving training data." });
+    });
+};
+
+exports.update = (req, res) => {
+
+  const id = req.params.id;
+
+  Contact.findByIdAndUpdate(id, req.body, { useFindAndModify: false })
+    .then(data => {
+      if (!data) {
+        res.status(404).json({ status_code: 404, message: `Cannot update Contact with id=${id}. Maybe Contact was not found!` });
+      } else {
+        res.status(200).json({ status_code: 200, message: "Contact was updated successfully" });
+      }
+    })
+    .catch(err => {
+      res.status(500).json({ status_code: 500, message: "Error updating Contact with id=" + id });
+    });
+};
+// Find a single Training with an id
+exports.findOne = (req, res) => {
+  const id = req.params.id;
+
+  Contact.findById(id)
+    .then(data => {
+      if (!data) {
+        res.status(404).json({ status_code: 404, message: "Not found Training with id " + id });
+      } else {
+        res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
+      }
+    })
+    .catch(err => {
+      res.status(500).json({ status_code: 500, message: "Error retrieving Training with id=" + id });
     });
 };

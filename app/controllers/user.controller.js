@@ -8,16 +8,18 @@ exports.create = async (req, res) => {
   if (!req.body.username && !req.body.password && !req.body.email && !req.body.phone_number) {
     return res.status(400).json({ status_code: 400, message: "Content can not be empty!" });
   }
-  const password = req.body.password
-  const encryptedPassword = await hashPassword(password)
+  const password = req.body.password;
+  const encryptedPassword = await hashPassword(password);
+
   // Create a User
   const user = new User({
     name: req.body.name,
     username: req.body.username,
     email: req.body.email,
-    password : encryptedPassword,
+    password: encryptedPassword,
     phone_number: req.body.phone_number,
-    active: req.body.active || true // Use a default value if not provided
+    active: req.body.active || true,
+    userType: req.body.userType || 'normal', // Set userType from request or use default
   });
 
   // Save User in the database
@@ -37,24 +39,25 @@ exports.login = async (req, res) => {
   if (!user) {
     return res.status(401).json({ status_code: 401, message: 'Invalid credentials' });
   }
-  // Encrypt the provided password with the stored salt
+
   const encryptedPassword = await verifyPassword(password, user.password);
-  console.log(encryptedPassword)
-  
+
   if (!encryptedPassword) {
     return res.status(401).json({ status_code: 401, message: 'Invalid credentials' });
   } else {
-    const token = generateToken(user); // Use the separate function
+    const token = generateToken(user);
 
-    // Construct and send the success response
+    // Construct and send the success response with userType
     const response = {
       status_code: 200,
       message: 'Login successful',
       access_token: token,
+      userType: user.userType, // Include userType in the response
     };
     return res.json(response);
   }
 };
+
 
 
 // Retrieve all User from the database.

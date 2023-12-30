@@ -12,7 +12,8 @@ module.exports = mongoose => {
           password: String,
           phone_number: Number,
           active: Boolean,
-          type: Number
+          active: { type: Boolean, default: true },
+          userType: { type: String, enum: ['normal', 'admin'], default: 'normal' }, // Add userType field
         },
         { timestamps: true }
       )
