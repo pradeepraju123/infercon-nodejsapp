@@ -1,6 +1,6 @@
 const {isValidUrl} = require('../utils/data.utils.js');
 const db = require("../models");
-const { createWhatsappMessage } = require('../utils/whatsapp.utils.js');
+const { createWhatsappOrderMessage } = require('../utils/whatsapp.utils.js');
 const Order = db.order;
 // Create and Save a new Tutorial
 
