@@ -1,7 +1,7 @@
 const {isValidUrl} = require('../utils/data.utils.js');
 const db = require("../models");
 const { createWhatsappMessage } = require('../utils/whatsapp.utils.js');
-const Contact = db.contact;
+const Order = db.order;
 // Create and Save a new Tutorial
 
 exports.create = (req, res) => {
@@ -25,25 +25,22 @@ exports.create = (req, res) => {
     //  if (req.body.course && typeof req.body.course !== 'string') {
     //     return res.status(400).json({ status_code: 400, message: "Course must be a string." });
     //   }
-       // Validate mobile (if provided)
-    if (req.body.message && typeof req.body.message !== 'string') {
-        return res.status(400).json({ status_code: 400, message: "Message must be a string." });
-      }
     // Create a Training with event_details and systems_used
-    const contact = new Contact({
+    const order = new Order({
       fullname: req.body.fullname,
       email: req.body.email,
       phone: req.body.phone,
       courses: req.body.courses,
-      message: req.body.message,
-      lead_status: req.body.lead_status,
-      source : req.body.source,
-      additional_details : req.body.additional_details
+      amount: req.body.amount,
+      mode: req.body.mode,
+      order_status : req.body.order_status,
+      country : req.body.country,
+      state : req.body.state
     });
   // Save the training data
-  contact.save()
+  order.save()
     .then(data => {
-        createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message, data.source, data.additional_details);
+        // createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message, data.source, data.additional_details);
       res.status(201).json({ status_code: 201, message: "Contact created successfully", data: data });
     })
     .catch(err => {
@@ -76,14 +73,14 @@ exports.getAll = (req, res) => {
     ];
   }
 
-  Contact.find(condition)
+  Order.find(condition)
     .sort({ [sort_by]: 1 })
     .then(data => {
-      res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
+      res.status(200).json({ status_code: 200, message: "Orders retrieved successfully", data: data });
     })
     .catch(err => {
       console.error('Error:', err); // Log any errors
-      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving training data." });
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving order." });
     });
 };
 
@@ -91,31 +88,31 @@ exports.update = (req, res) => {
 
   const id = req.params.id;
 
-  Contact.findByIdAndUpdate(id, req.body, { useFindAndModify: false })
+  Order.findByIdAndUpdate(id, req.body, { useFindAndModify: false })
     .then(data => {
       if (!data) {
         res.status(404).json({ status_code: 404, message: `Cannot update Contact with id=${id}. Maybe Contact was not found!` });
       } else {
-        res.status(200).json({ status_code: 200, message: "Contact was updated successfully" });
+        res.status(200).json({ status_code: 200, message: "Order was updated successfully" });
       }
     })
     .catch(err => {
-      res.status(500).json({ status_code: 500, message: "Error updating Contact with id=" + id });
+      res.status(500).json({ status_code: 500, message: "Error updating Order with id=" + id });
     });
 };
 // Find a single Training with an id
 exports.findOne = (req, res) => {
   const id = req.params.id;
 
-  Contact.findById(id)
+  Order.findById(id)
     .then(data => {
       if (!data) {
-        res.status(404).json({ status_code: 404, message: "Not found Training with id " + id });
+        res.status(404).json({ status_code: 404, message: "Not found Order with id " + id });
       } else {
-        res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
+        res.status(200).json({ status_code: 200, message: "Order retrieved successfully", data: data });
       }
     })
     .catch(err => {
-      res.status(500).json({ status_code: 500, message: "Error retrieving Training with id=" + id });
+      res.status(500).json({ status_code: 500, message: "Error retrieving Order with id=" + id });
     });
 };
