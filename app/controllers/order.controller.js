@@ -40,6 +40,7 @@ exports.create = (req, res) => {
   // Save the training data
   order.save()
     .then(data => {
+        createWhatsappOrderMessage(data.fullname, data.country, data.phone, data.email, data.amount, data.order_status, data.mode)
         // createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message, data.source, data.additional_details);
       res.status(201).json({ status_code: 201, message: "Contact created successfully", data: data });
     })

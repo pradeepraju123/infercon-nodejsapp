@@ -32,6 +32,38 @@ function createWhatsappMessage(fullname, email, phone, course, message, source, 
     }
 }
 
+function createWhatsappOrderMessage(fullname, country, phone, email, amount, order_status, mode) {
+    try {
+        const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3c9955ceda3a49926bdc38e41a23564086a6";
+
+        // Customize your message template using the provided parameters for an order
+        const messageTemplate = `*New order :*\n\n**Name :* ${fullname}!\n\nWe have received a new order.\n\n*Information :*\n\nCountry: ${country}\nPhone: ${phone}\nEmail: ${email}\nAmount: ${amount}\nStatus: ${order_status}\nMode: ${mode}`;
+
+        const payload = {
+            // chatId: "120363029514494201@g.us",
+            chatId: "916381794189@c.us",
+            message: messageTemplate
+        };
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        return axios.post(url, payload, { headers })
+            .then(response => {
+                console.log(response.data);
+                return response.data;  // Assuming you want to return some data after the request
+            })
+            .catch(error => {
+                console.error(error);
+                throw error;  // Rethrow the error to handle it outside the function if needed
+            });
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+}
+
 
 function createWhatsappMessageRegistration(formData) {
     try {
