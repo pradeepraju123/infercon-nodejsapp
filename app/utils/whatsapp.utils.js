@@ -8,8 +8,8 @@ function createWhatsappMessage(fullname, email, phone, course, message, source, 
         const messageTemplate = `*New enquiry :*\n\n*Source : ${source}*\n\n**Name :* ${fullname}!\n\nWe have received enquiry for this course :  ${course} course.\n\n*Information :*\n\nEmail: ${email}\nPhone: ${phone}\n\nYour Message:\n${message}\n\nAdditional details:\n${additional_details}`;
 
         const payload = {
-            // chatId: "120363029514494201@g.us",
-            chatId : "916381794189@c.us",
+            chatId: "120363029514494201@g.us",
+            // chatId : "916381794189@c.us",
             message: messageTemplate
         };
 
@@ -37,11 +37,11 @@ function createWhatsappOrderMessage(fullname, country, phone, email, amount, ord
         const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3c9955ceda3a49926bdc38e41a23564086a6";
 
         // Customize your message template using the provided parameters for an order
-        const messageTemplate = `*New order :*\n\n**Name :* ${fullname}!\n\nWe have received a new order.\n\n*Information :*\n\nCountry: ${country}\nPhone: ${phone}\nEmail: ${email}\nAmount: ${amount}\nStatus: ${order_status}\nMode: ${mode}`;
+        const messageTemplate = `*New order :*\n\n*Name :* ${fullname}!\n\nWe have received a new order.\n\n*Information :*\n\nCountry: ${country}\nPhone: ${phone}\nEmail: ${email}\nAmount: ${amount}\nStatus: ${order_status}\nMode: ${mode}`;
 
         const payload = {
-            // chatId: "120363029514494201@g.us",
-            chatId: "916381794189@c.us",
+            chatId: "120363029514494201@g.us",
+            // chatId: "916381794189@c.us",
             message: messageTemplate
         };
 
@@ -72,8 +72,8 @@ function createWhatsappMessageRegistration(formData) {
         // Customize your message template using the provided parameters
         const messageTemplate = `**New Registration** \n\n**Name : **${formData.firstname} ${formData.middlename} ${formData.lastname}!\n\nWe have received registration for this course ${formData.courses} course. Information.\n\n**Email**: ${formData.email}\n**Phone**: ${formData.mobile}\n\nAdditional Information:\n\n**Mode of Education**: ${formData.modeOfEducation}\n**Birthday**: ${formData.bday}\n**Gender**: ${formData.gender}\n**Address**: ${formData.address}\n**Additional Mobile**: ${formData.additionalMobile}\n**Work Mobile**: ${formData.workMobile}\n**Company**: ${formData.company}\n**Comments**: ${formData.comments}\n**Education**: ${formData.education}\n**Industry Experience**: ${formData.industryexp}\n**Years of Experience**: ${formData.yearsOfExp}\n**Government ID**: ${formData.governmentId}\n**Currency Type**: ${formData.currencyType}\n**Fees Currency**: ${formData.feesCurrency}\n**Document**: ${formData.document}`;
         const payload = {
-            // chatId: "120363029514494201@g.us",
-            chatId : "916381794189@c.us",
+            chatId: "120363029514494201@g.us",
+            // chatId : "916381794189@c.us",
             message: messageTemplate
         };
 
@@ -103,8 +103,8 @@ function createWhatsappfile(document) {
         // Customize your message template using the provided parameters
         const urlFile = document
         const payload = {
-            // chatId: "120363029514494201@g.us",
-            chatId : "916381794189@c.us",
+            chatId: "120363029514494201@g.us",
+            // chatId : "916381794189@c.us",
             urlFile: urlFile,
             fileName: "attachment.pdf",
             caption: "PDF file",
@@ -137,8 +137,8 @@ function sendBookingNotification(fullname, email, phone, date, time, message) {
         const messageTemplate = `*New Booking :*\n\n*Name :* ${fullname}!\n\nWe have received booking for meeting for this reason :  ${message}.\n\n*Information :*\n\nEmail: ${email}\nPhone: ${phone}\n\nDate:\n${date}\n\nTime: ${time}`;
 
         const payload = {
-            // chatId: "120363029514494201@g.us",
-            chatId : "916381794189@c.us",
+            chatId: "120363029514494201@g.us",
+            // chatId : "916381794189@c.us",
             message: messageTemplate
         };
 
