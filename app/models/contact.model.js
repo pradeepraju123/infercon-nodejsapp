@@ -10,7 +10,8 @@ module.exports = mongoose => {
           message: String,
           lead_status: String,
           assignee: String,
-          source: String
+          source: String,
+          additional_details: String
         },
         { timestamps: true }
       )
