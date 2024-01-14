@@ -16,6 +16,9 @@ module.exports = app => {
   
     // Retrieve a single Tutorial with id
     router.get("/:id", trainings.findOne);
+
+    // Retrieve a single Tutorial with id
+    router.get("/detail/:slug", trainings.findBySlug);
   
     // Update a Tutorial with id
     router.post("/:id", authenticateToken, trainings.update);

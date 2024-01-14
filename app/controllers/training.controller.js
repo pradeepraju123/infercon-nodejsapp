@@ -69,6 +69,24 @@ exports.create = (req, res) => {
     });
     };
 
+// Find a single Training with a slug
+exports.findBySlug = (req, res) => {
+  const slug = req.params.slug;
+
+  Training.findOne({ slug: slug })
+    .then(data => {
+      if (!data) {
+        res.status(404).json({ status_code: 404, message: "Not found Training with slug " + slug });
+      } else {
+        res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
+      }
+    })
+    .catch(err => {
+      res.status(500).json({ status_code: 500, message: "Error retrieving Training with slug=" + slug });
+    });
+};
+
+
 exports.getAll = (req, res) => {
       const { searchTerm, start_date, end_date, published, sort_by, page_size, page_num } = req.body;
       console.log('Body Parameters:', req.body);
