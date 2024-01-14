@@ -9,6 +9,10 @@ exports.create = (req, res) => {
     if (!req.body.title) {
       return res.status(400).json({ status_code: 400, message: "Title can not be empty!" });
     }
+    // Validate request
+    if (!req.body.slug) {
+      return res.status(400).json({ status_code: 400, message: "Slug can not be empty!" });
+    }
     if (typeof req.body.title !== 'string') {
       return res.status(400).json({ status_code: 400, message: "Title must be a string." });
     }
@@ -52,7 +56,8 @@ exports.create = (req, res) => {
       image: req.body.image !== "" ? req.body.image : undefined,
       published: req.body.published || false,
       event_details: req.body.event_details || [],
-      systems_used: req.body.systems_used || []
+      systems_used: req.body.systems_used || [],
+      slug : req.body.slug
     });
   // Save the training data
   training.save()

@@ -12,6 +12,7 @@ module.exports = mongoose => {
           description: String,
           published: Boolean,
           image: String,
+          slug: String,
           event_details: [
             {
               title: String,
