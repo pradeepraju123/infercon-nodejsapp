@@ -12,6 +12,8 @@ exports.create = (req, res) => {
   const generaldata = new GeneralData({
     title: req.body.title,
     description: req.body.description,
+    short_description: req.body.short_description,
+    image: req.body.image,
     published: req.body.published || false // Use a default value if not provided
   });
 
