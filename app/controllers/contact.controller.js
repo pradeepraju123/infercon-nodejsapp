@@ -209,13 +209,13 @@ exports.download = async (req, res) => {
     const filename = `data_${Date.now()}.xlsx`;
 
     // Define the path where the file will be saved on the server
-    const filePath = path.join(__dirname, '../uploads', filename);
+    const filePath = path.join('/home/inferconautomation-l1/htdocs/l1.inferconautomation.com/uploads', filename);
 
     // Write the Excel file to the defined path
     await workbook.xlsx.writeFile(filePath);
 
     // Construct the URL based on the server's address and the path to the saved file
-    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
+    const fileUrl = `https://l1.inferconautomation.com/uploads/${filename}`;
 
     // Return the URL to the client
     res.status(200).json({ status_code: 200, message: "Excel file uploaded successfully", url: fileUrl });
