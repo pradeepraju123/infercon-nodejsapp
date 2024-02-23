@@ -74,6 +74,29 @@ exports.findAll = (req, res) => {
     });
 };
 
+// Retrieve all User from the database.
+exports.findAllPost = (req, res) => {
+  const { searchTerm } = req.body;
+  console.log('Body Parameters:', req.body);
+  let condition = {};
+  if (searchTerm) {
+    // Add a search condition based on your specific requirements
+    condition.$or = [
+      { username: { $regex: new RegExp(searchTerm, 'i') } }, // Replace 'field1' with the actual field to search
+      { name: { $regex: new RegExp(searchTerm, 'i') } },
+      {userType: { $regex: new RegExp(searchTerm, 'i') }}
+      // Add more fields as needed
+    ];
+  }
+  User.find(condition)
+    .then(data => {
+      res.status(200).json({ status_code: 200, message: "User data retrieved successfully", data: data });
+    })
+    .catch(err => {
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving userd." });
+    });
+};
+
 // Find a single User with an id
 exports.findOne = (req, res) => {
   const id = req.params.id;

@@ -2,6 +2,9 @@ const {isValidUrl} = require('../utils/data.utils.js');
 const db = require("../models");
 const { createWhatsappMessage } = require('../utils/whatsapp.utils.js');
 const Contact = db.contact;
+const path = require('path');
+const fs = require('fs');
+const exceljs = require('exceljs');
 // Create and Save a new Tutorial
 
 exports.create = (req, res) => {
@@ -53,31 +56,59 @@ exports.create = (req, res) => {
 
 // Retrieve all Training from the database with pagination.
 exports.getAll = (req, res) => {
-  const { start_date, end_date, searchTerm, sort_by } = req.query;
+  const { searchTerm, start_date, end_date, sort_by,page_size,page_num, assignee } = req.body;
+  console.log('Body Parameters:', req.body);
 
-  // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
 
   let condition = {};
+  // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
+  const pageSize = parseInt(page_size, 10) || 10;
+  const pageNum = parseInt(page_num, 10) || 1;
+  // if (searchTerm) {
+  //   condition.fullname = { $regex: new RegExp(searchTerm, "i") };
+  // }
 
   // Add filtering conditions based on the provided parameters
   if (start_date && end_date) {
-    condition.createdAt = { $gte: new Date(start_date), $lte: new Date(end_date) };
+    condition.createdAt = {
+      $gte: new Date(start_date),
+      $lte: new Date(end_date), // Assuming end_date should include the entire day
+    };
   }
-
 
   if (searchTerm) {
     // Add a search condition based on your specific requirements
     condition.$or = [
       { fullname: { $regex: new RegExp(searchTerm, 'i') } }, // Replace 'field1' with the actual field to search
       { email: { $regex: new RegExp(searchTerm, 'i') } }, // Replace 'field2' with another field to search
-      { phone: { $regex: new RegExp(searchTerm, 'i') } }
+      { phone: { $regex: new RegExp(searchTerm, 'i') } },
+      {courses: { $regex: new RegExp(searchTerm, 'i') }}
+
       
       // Add more fields as needed
     ];
   }
-
-  Contact.find(condition)
-    .sort({ [sort_by]: 1 })
+  if (assignee) {
+    condition.assignee = assignee; // Assuming assignee is a direct match, modify as needed
+  }
+  // Calculate the number of documents to skip
+  const skip = (pageNum - 1) * pageSize;
+    Contact.aggregate([
+      { $match: condition }, // Apply your condition here
+      { $sort: { [sort_by]: 1 } }, // Sort the data
+      { 
+        $addFields: { // Add a new field with formatted date
+          formattedCreatedAt: {
+            $dateToString: {
+              format: "%Y-%m-%d %H:%M:%S", // Define your desired date format
+              date: "$createdAt" // Use the createdAt field from your documents
+            }
+          }
+        }
+      }
+    ])
+    .skip(skip)
+    .limit(pageSize)
     .then(data => {
       res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
     })
@@ -118,4 +149,78 @@ exports.findOne = (req, res) => {
     .catch(err => {
       res.status(500).json({ status_code: 500, message: "Error retrieving Training with id=" + id });
     });
+};
+
+exports.download = async (req, res) => {
+  try {
+    const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee } = req.body;
+    console.log('Body Parameters:', req.body);
+
+    let condition = {};
+
+    // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
+    const pageSize = parseInt(page_size, 10) || 10;
+    const pageNum = parseInt(page_num, 10) || 1;
+
+    // Add filtering conditions based on the provided parameters
+    if (start_date && end_date) {
+      condition.createdAt = {
+        $gte: new Date(start_date),
+        $lte: new Date(end_date), // Assuming end_date should include the entire day
+      };
+    }
+
+    if (searchTerm) {
+      // Add a search condition based on your specific requirements
+      condition.$or = [
+        { fullname: { $regex: new RegExp(searchTerm, 'i') } },
+        { email: { $regex: new RegExp(searchTerm, 'i') } },
+        { phone: { $regex: new RegExp(searchTerm, 'i') } },
+        { courses: { $regex: new RegExp(searchTerm, 'i') } }
+        // Add more fields as needed
+      ];
+    }
+    if (assignee) {
+      condition.assignee = assignee; // Assuming assignee is a direct match, modify as needed
+    }
+
+    // Calculate the number of documents to skip
+    const skip = (pageNum - 1) * pageSize;
+
+    // Fetch data from the database based on the conditions
+    const data = await Contact.find(condition)
+      .sort({ [sort_by]: 1 }) // Sort the data
+      .skip(skip)
+      .limit(pageSize);
+
+    // Create Excel workbook and worksheet
+    const workbook = new exceljs.Workbook();
+    const worksheet = workbook.addWorksheet('Data');
+
+    // Add headers
+    worksheet.addRow(['Fullname', 'Email', 'Phone', 'Courses', 'Created At']);
+
+    // Add data to the worksheet
+    data.forEach(item => {
+      worksheet.addRow([item.fullname, item.email, item.phone, item.courses, item.createdAt]);
+    });
+
+    // Generate a unique filename for the Excel file
+    const filename = `data_${Date.now()}.xlsx`;
+
+    // Define the path where the file will be saved on the server
+    const filePath = path.join(__dirname, '../uploads', filename);
+
+    // Write the Excel file to the defined path
+    await workbook.xlsx.writeFile(filePath);
+
+    // Construct the URL based on the server's address and the path to the saved file
+    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${filename}`;
+
+    // Return the URL to the client
+    res.status(200).json({ status_code: 200, message: "Excel file uploaded successfully", url: fileUrl });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ status_code: 500, message: "Internal Server Error" });
+  }
 };
