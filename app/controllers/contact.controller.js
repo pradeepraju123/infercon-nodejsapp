@@ -62,19 +62,19 @@ exports.getAll = (req, res) => {
 
   let condition = {};
   // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
-  const pageSize = parseInt(page_size, 10) || 10;
-  const pageNum = parseInt(page_num, 10) || 1;
+  // const pageSize = parseInt(page_size, 10) || 10;
+  // const pageNum = parseInt(page_num, 10) || 1;
   // if (searchTerm) {
   //   condition.fullname = { $regex: new RegExp(searchTerm, "i") };
   // }
 
   // Add filtering conditions based on the provided parameters
-  if (start_date && end_date) {
-    condition.createdAt = {
-      $gte: new Date(start_date),
-      $lte: new Date(end_date), // Assuming end_date should include the entire day
-    };
-  }
+  // if (start_date && end_date) {
+  //   condition.createdAt = {
+  //     $gte: new Date(start_date),
+  //     $lte: new Date(end_date), // Assuming end_date should include the entire day
+  //   };
+  // }
 
   if (searchTerm) {
     // Add a search condition based on your specific requirements
@@ -92,7 +92,7 @@ exports.getAll = (req, res) => {
     condition.assignee = assignee; // Assuming assignee is a direct match, modify as needed
   }
   // Calculate the number of documents to skip
-  const skip = (pageNum - 1) * pageSize;
+  // const skip = (pageNum - 1) * pageSize;
     Contact.aggregate([
       { $match: condition }, // Apply your condition here
       { $sort: { [sort_by]: 1 } }, // Sort the data
@@ -107,8 +107,6 @@ exports.getAll = (req, res) => {
         }
       }
     ])
-    .skip(skip)
-    .limit(pageSize)
     .then(data => {
       res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
     })
