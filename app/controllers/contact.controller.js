@@ -151,14 +151,10 @@ exports.findOne = (req, res) => {
 
 exports.download = async (req, res) => {
   try {
-    const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee } = req.body;
+    const { searchTerm, start_date, end_date, sort_by, assignee } = req.body;
     console.log('Body Parameters:', req.body);
 
     let condition = {};
-
-    // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
-    const pageSize = parseInt(page_size, 10) || 10;
-    const pageNum = parseInt(page_num, 10) || 1;
 
     // Add filtering conditions based on the provided parameters
     if (start_date && end_date) {
@@ -182,14 +178,9 @@ exports.download = async (req, res) => {
       condition.assignee = assignee; // Assuming assignee is a direct match, modify as needed
     }
 
-    // Calculate the number of documents to skip
-    const skip = (pageNum - 1) * pageSize;
-
     // Fetch data from the database based on the conditions
     const data = await Contact.find(condition)
       .sort({ [sort_by]: 1 }) // Sort the data
-      .skip(skip)
-      .limit(pageSize);
 
     // Create Excel workbook and worksheet
     const workbook = new exceljs.Workbook();
