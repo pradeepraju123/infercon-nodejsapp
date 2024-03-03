@@ -1,7 +1,8 @@
 const {isValidUrl} = require('../utils/data.utils.js');
 const db = require("../models");
-const { createWhatsappMessage } = require('../utils/whatsapp.utils.js');
+const { createWhatsappMessage,createNotificationMessage } = require('../utils/whatsapp.utils.js');
 const Contact = db.contact;
+const User = db.users
 const path = require('path');
 const fs = require('fs');
 const exceljs = require('exceljs');
@@ -132,6 +133,26 @@ exports.update = (req, res) => {
       res.status(500).json({ status_code: 500, message: "Error updating Contact with id=" + id });
     });
 };
+
+exports.updateBulk = (req, res) => {
+  const ids = req.body.ids; // Assuming the request body contains an array of IDs to update
+  const updateData = req.body.updateData; // Assuming the request body contains the update data for the contacts
+  console.log("ids :: ", ids)
+  Contact.updateMany({ _id: { $in: ids } }, updateData, { useFindAndModify: false })
+    .then(data => {
+      console.log(data)
+      if (data.modifiedCount > 0) {
+        res.status(200).json({ status_code: 200, message: "Contacts were updated successfully", updatedIds: ids });
+      } else {
+        res.status(404).json({ status_code: 404, message: `None of the contacts with the provided IDs were found` });
+      }
+    })
+    .catch(err => {
+      console.error("Error updating contacts:", err);
+      res.status(500).json({ status_code: 500, message: "Error updating contacts" });
+    });
+};
+
 // Find a single Training with an id
 exports.findOne = (req, res) => {
   const id = req.params.id;
@@ -165,6 +186,7 @@ exports.download = async (req, res) => {
     }
 
     if (searchTerm) {
+
       // Add a search condition based on your specific requirements
       condition.$or = [
         { fullname: { $regex: new RegExp(searchTerm, 'i') } },
@@ -208,6 +230,41 @@ exports.download = async (req, res) => {
 
     // Return the URL to the client
     res.status(200).json({ status_code: 200, message: "Excel file uploaded successfully", url: fileUrl });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ status_code: 500, message: "Internal Server Error" });
+  }
+};
+
+exports.sendnotification = async (req, res) => {
+  try {
+    const { contact_ids, fullname } = req.body;
+    let condition = {};
+    if (fullname) {
+      // Adjust the condition object for findOne
+      condition = { username: fullname }; // Assuming 'fullname' is a field in your Contact schema
+    }
+
+    // Fetch data from the database based on the condition
+    const user = await User.findOne(condition);
+    // Check if a contact is found
+    if (user) {
+      // Get the contact number
+      const contactNumber = user.phone_number; // Assuming 'mobile' is a field in your Contact schema
+      // If the contact number length is 10, append '91' to the front
+      if (contactNumber.length === 10) {
+        contactNumber = '91' + contactNumber;
+      }
+      const count = contact_ids.length;
+
+      // Send notification to staff
+      await createNotificationMessage(contactNumber, count);
+
+      // Return the URL to the client
+      res.status(200).json({ status_code: 200, message: `You got new ${count} leads` });
+    } else {
+      res.status(404).json({ status_code: 404, message: `Contact with fullname=${user} not found` });
+    }
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ status_code: 500, message: "Internal Server Error" });

@@ -8,11 +8,15 @@ module.exports = app => {
     // Retrieve all Tutorials
     router.post("/get", authenticateToken, contact.getAll);
      // Download contact details
-     router.post("/download", authenticateToken, contact.download)
+     router.post("/download", authenticateToken, contact.download);
     // Update a Tutorial with id
     router.post("/:id", authenticateToken, contact.update);
     // Retrieve a single Tutorial with id
     router.get("/:id", contact.findOne);
+
+    router.post("/action/update-many", authenticateToken, contact.updateBulk);
+
+    router.post("/action/send-notification",authenticateToken, contact.sendnotification);
    
     app.use('/api/v1/contact', router);
     
