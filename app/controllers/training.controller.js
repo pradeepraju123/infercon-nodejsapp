@@ -52,11 +52,14 @@ exports.create = (req, res) => {
       // Update image only if it is not an empty string
       meta_title: req.body.meta_title,
       keywords: req.body.keywords,
+      courses_type : req.body.courses_type,
+      sub_type: req.body.sub_type,
       meta_description: req.body.meta_description,
       image: req.body.image !== "" ? req.body.image : undefined,
       published: req.body.published || false,
       event_details: req.body.event_details || [],
       systems_used: req.body.systems_used || [],
+      additional_details: req.body.additional_details || [],
       slug : req.body.slug
     });
   // Save the training data
@@ -92,7 +95,7 @@ exports.getAll = (req, res) => {
       console.log('Body Parameters:', req.body);
     
       // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
-      const pageSize = parseInt(page_size, 10) || 10;
+      const pageSize = parseInt(page_size, 20) || 30;
       const pageNum = parseInt(page_num, 10) || 1;
     
       let condition = {};
@@ -207,7 +210,7 @@ exports.update = (req, res) => {
       }
     })
     .catch(err => {
-      res.status(500).json({ status_code: 500, message: "Error updating Training with id=" + id });
+      res.status(500).json({ status_code: 500, message: "Error updating Training with id=" + id + "Error :: " + err});
     });
 };
 
