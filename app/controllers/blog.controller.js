@@ -13,6 +13,7 @@ exports.create = (req, res) => {
     description: req.body.description,
     image: req.body.image,
     short_description: req.body.short_description,
+    type_ : req.body.type_,
     author_image: req.body.author_image,
     author: req.body.author,
     published: req.body.published || false // Use a default value if not provided
