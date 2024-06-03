@@ -56,6 +56,7 @@ exports.create = (req, res) => {
       sub_type: req.body.sub_type,
       meta_description: req.body.meta_description,
       image: req.body.image !== "" ? req.body.image : undefined,
+      second_image: req.body.second_image !== "" ? req.body.second_image : undefined,
       published: req.body.published || false,
       event_details: req.body.event_details || [],
       systems_used: req.body.systems_used || [],
