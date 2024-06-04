@@ -37,10 +37,10 @@ exports.findAll = (req, res) => {
   const type = req.query.type; // Add the 'type' parameter
   const limit = parseInt(req.query.limit) || 0;
 
-  // Update the condition to include 'type'
+  // Update the condition to include 'type' only if it's provided
   const condition = title
-    ? { title: { $regex: new RegExp(title), $options: "i" }, type: type }
-    : { type_: type };
+    ? { title: { $regex: new RegExp(title), $options: "i" }, ...(type && { type: type }) }
+    : { ...(type && { type: type }) };
 
   Blog.find(condition)
     .limit(limit)
