@@ -33,8 +33,8 @@ exports.create = (req, res) => {
 // Retrieve all Blog from the database.
 
 exports.findAll = (req, res) => {
-  const {title, type} = req.body
-  const limit = parseInt(req.query.limit) || 0;
+  const {title, type, limit} = req.body
+  const Limit = parseInt(limit, 10) || 10;
 
   // Update the condition to include 'type' only if it's provided
   if (title){
@@ -46,7 +46,7 @@ exports.findAll = (req, res) => {
   
 
   Blog.find(condition)
-    .limit(limit)
+    .limit(Limit)
     .then(data => {
       res.status(200).json({
         status_code: 200,
