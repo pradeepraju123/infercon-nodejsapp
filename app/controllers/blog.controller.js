@@ -33,14 +33,17 @@ exports.create = (req, res) => {
 // Retrieve all Blog from the database.
 
 exports.findAll = (req, res) => {
-  const title = req.query.title;
-  const type = req.query.type; // Add the 'type' parameter
+  const {title, type} = req.body
   const limit = parseInt(req.query.limit) || 0;
 
   // Update the condition to include 'type' only if it's provided
-  const condition = title
-    ? { title: { $regex: new RegExp(title), $options: "i" }, ...(type && { type: type }) }
-    : { ...(type && { type: type }) };
+  if (title){
+    condition.title = { $regex: new RegExp(title), $options: "i" }
+  }
+  if (type) {
+    condition.type = type
+  }
+  
 
   Blog.find(condition)
     .limit(limit)
