@@ -41,7 +41,7 @@ exports.findAll = (req, res) => {
     condition.title = { $regex: new RegExp(title), $options: "i" }
   }
   if (type) {
-    condition.type = type
+    condition.type_ = type
   }
   
 
