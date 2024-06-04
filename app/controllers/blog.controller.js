@@ -35,7 +35,7 @@ exports.create = (req, res) => {
 exports.findAll = (req, res) => {
   const {title, type, limit} = req.body
   const Limit = parseInt(limit, 10) || 10;
-
+  let condition = {};
   // Update the condition to include 'type' only if it's provided
   if (title){
     condition.title = { $regex: new RegExp(title), $options: "i" }
