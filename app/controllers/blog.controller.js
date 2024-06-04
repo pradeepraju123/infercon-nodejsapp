@@ -31,20 +31,34 @@ exports.create = (req, res) => {
 
 
 // Retrieve all Blog from the database.
+
 exports.findAll = (req, res) => {
   const title = req.query.title;
-  const limit = parseInt(req.query.limit) || 0; // Parse the 'limit' parameter as an integer
-  const condition = title ? { title: { $regex: new RegExp(title), $options: "i" } } : {};
+  const type = req.query.type; // Add the 'type' parameter
+  const limit = parseInt(req.query.limit) || 0;
+
+  // Update the condition to include 'type'
+  const condition = title
+    ? { title: { $regex: new RegExp(title), $options: "i" }, type: type }
+    : { type_: type };
 
   Blog.find(condition)
-    .limit(limit) // Apply the 'limit' to your query
+    .limit(limit)
     .then(data => {
-      res.status(200).json({ status_code: 200, message: "Blog data retrieved successfully", data: data });
+      res.status(200).json({
+        status_code: 200,
+        message: "Blog data retrieved successfully",
+        data: data
+      });
     })
     .catch(err => {
-      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving blogs." });
+      res.status(500).json({
+        status_code: 500,
+        message: err.message || "Some error occurred while retrieving blogs."
+      });
     });
 };
+
 
 
 // Find a single Blog with an id
