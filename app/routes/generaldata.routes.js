@@ -15,7 +15,7 @@ module.exports = app => {
     // Retrieve a single Tutorial with id
     router.get("/:id", generaldata.findOne);
 
-    router.get('/list', generaldata.findByType);
+    router.post('/list', generaldata.findByType);
   
     // Update a Tutorial with id
     router.post("/:id",authenticateToken, generaldata.update);
