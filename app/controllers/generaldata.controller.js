@@ -59,6 +59,26 @@ exports.findOne = (req, res) => {
     });
 };
 
+exports.findByType = (req, res) => {
+  const {type} = req.body;
+  const condition = {}
+
+  if (type) {
+    condition.type_ = type
+  }
+  GeneralData.find(condition)
+    .then(data => {
+      if (!data) {
+        res.status(404).json({ status_code: 404, message: "Not found GeneralData with id " + id });
+      } else {
+        res.status(200).json({ status_code: 200, message: "GeneralData data retrieved successfully", data: data });
+      }
+    })
+    .catch(err => {
+      res.status(500).json({ status_code: 500, message: "Error retrieving GeneralData with id=" + id });
+    });
+};
+
 // Update a GeneralData by the id in the request
 exports.update = (req, res) => {
   if (!req.body) {

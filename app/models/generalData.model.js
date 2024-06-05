@@ -8,7 +8,8 @@ module.exports = mongoose => {
           description: String,
           image: String,
           short_description: String,
-          published: Boolean
+          published: Boolean,
+          type_: String
         },
         { timestamps: true }
       )
