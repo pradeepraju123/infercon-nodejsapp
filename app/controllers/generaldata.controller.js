@@ -14,6 +14,7 @@ exports.create = (req, res) => {
     description: req.body.description,
     short_description: req.body.short_description,
     image: req.body.image,
+    type_: req.body.type_,
     published: req.body.published || false // Use a default value if not provided
   });
 
