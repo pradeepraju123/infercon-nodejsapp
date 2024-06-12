@@ -1,4 +1,5 @@
-const CareerList = mongoose.model(
+module.exports = mongoose => {
+    const CareerList = mongoose.model(
     "career_list",
     mongoose.Schema(
       {
@@ -13,3 +14,5 @@ const CareerList = mongoose.model(
       }
     )
   );
+  return CareerList;
+  };
