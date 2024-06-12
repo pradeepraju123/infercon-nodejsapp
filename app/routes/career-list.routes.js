@@ -8,6 +8,8 @@ module.exports = app => {
 
     // Retrieve all Tutorials
     router.post("/all", careerlist.getAll);
+    
+    router.get('/', careerlist.getAll);
 
     // Retrieve a single Tutorial with id
     router.get("/:id", careerlist.findOne);
