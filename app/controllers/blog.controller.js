@@ -33,25 +33,21 @@ exports.create = (req, res) => {
 // Retrieve all Blog from the database.
 
 exports.findAll = (req, res) => {
-  const {title, type, limit} = req.body
-  
-
+  const { title, type, limit } = req.body;
 
   let condition = {};
-  // Update the condition to include 'type' only if it's provided
+  let Limit = 10;  // Default limit
 
-  if (limit) {
-    const Limit = limit;
-  }else {
-    const Limit = 10;
-  }
-  if (title){
-    condition.title = { $regex: new RegExp(title), $options: "i" }
+  // Update the condition to include 'type' only if it's provided
+  if (title) {
+    condition.title = { $regex: new RegExp(title), $options: "i" };
   }
   if (type) {
-    condition.type_ = type
+    condition.type_ = type;
   }
-  
+  if (limit) {
+    Limit = parseInt(limit); // Ensure limit is an integer
+  }
 
   Blog.find(condition)
     .limit(Limit)
