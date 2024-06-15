@@ -1,6 +1,6 @@
 const {isValidUrl} = require('../utils/data.utils.js');
 const db = require("../models");
-const { createWhatsappMessage } = require('../utils/whatsapp.utils.js');
+const { createplacementDetailsMessage } = require('../utils/whatsapp.utils.js');
 const Placements = db.placements;
 // Create and Save a new Tutorial
 
@@ -37,7 +37,7 @@ exports.create = (req, res) => {
   // Save the training data
   placements.save()
     .then(data => {
-        // createWhatsappMessage(data.fullname, data.email, data.phone, data.course, data.message);
+        createplacementDetailsMessage(data.fullname, data.email, data.phone, data.job_id, data.student_code)
       res.status(201).json({ status_code: 201, message: "Placement records created successfully", data: data });
     })
     .catch(err => {
