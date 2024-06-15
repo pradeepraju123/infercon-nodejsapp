@@ -41,8 +41,8 @@ function createplacementDetailsMessage(fullname, email, phone, job_id, student_c
         const messageTemplate = `*New Placement Request :*\n*Name :* ${fullname}!\n\nWe have received placement enquiry for this for this job ID :  ${job_id}.\n\n*Information :*\n\nEmail: ${email}\nPhone: ${phone}\nStudent Code:${student_code}`;
 
         const payload = {
-            // chatId: "120363029514494201@g.us",
-            chatId : "916381794189@c.us",
+            chatId: "120363029514494201@g.us",
+            // chatId : "916381794189@c.us",
             message: messageTemplate
         };
 
