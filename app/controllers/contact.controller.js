@@ -102,7 +102,7 @@ exports.getAll = (req, res) => {
   // Calculate the number of documents to skip
   // const skip = (pageNum - 1) * pageSize;
     Contact.find(condition)
-    .sort({ [sort_by]: 1 })
+    .sort({ createdAt: -1 })
     .then(data => {
       res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
     })
@@ -198,7 +198,7 @@ exports.download = async (req, res) => {
 
     // Fetch data from the database based on the conditions
     const data = await Contact.find(condition)
-      .sort({ [sort_by]: 1 }) // Sort the data
+      .sort({ createdAt: -1 }) // Sort the data
 
     // Create Excel workbook and worksheet
     const workbook = new exceljs.Workbook();
