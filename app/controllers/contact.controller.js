@@ -69,13 +69,13 @@ exports.getAll = (req, res) => {
   //   condition.fullname = { $regex: new RegExp(searchTerm, "i") };
   // }
 
-  // Add filtering conditions based on the provided parameters
-  // if (start_date && end_date) {
-  //   condition.createdAt = {
-  //     $gte: new Date(start_date),
-  //     $lte: new Date(end_date), // Assuming end_date should include the entire day
-  //   };
-  // }
+  //Add filtering conditions based on the provided parameters
+  if (start_date && end_date) {
+    condition.createdAt = {
+      $gte: new Date(start_date),
+      $lte: new Date(end_date), // Assuming end_date should include the entire day
+    };
+  }
 
   if (searchTerm) {
     // Add a search condition based on your specific requirements
@@ -92,22 +92,17 @@ exports.getAll = (req, res) => {
   if (assignee) {
     condition.assignee = assignee; // Assuming assignee is a direct match, modify as needed
   }
+   // Add filtering conditions based on the provided parameters
+   if (start_date && end_date) {
+    condition.createdAt = {
+      $gte: new Date(start_date),
+      $lte: new Date(end_date), // Assuming end_date should include the entire day
+    };
+  }
   // Calculate the number of documents to skip
   // const skip = (pageNum - 1) * pageSize;
-    Contact.aggregate([
-      { $match: condition }, // Apply your condition here
-      { $sort: { [sort_by]: 1 } }, // Sort the data
-      { 
-        $addFields: { // Add a new field with formatted date
-          formattedCreatedAt: {
-            $dateToString: {
-              format: "%Y-%m-%d %H:%M:%S", // Define your desired date format
-              date: "$createdAt" // Use the createdAt field from your documents
-            }
-          }
-        }
-      }
-    ])
+    Contact.find(condition)
+    .sort({ [sort_by]: 1 })
     .then(data => {
       res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
     })
@@ -196,6 +191,7 @@ exports.download = async (req, res) => {
         // Add more fields as needed
       ];
     }
+
     if (assignee) {
       condition.assignee = assignee; // Assuming assignee is a direct match, modify as needed
     }
