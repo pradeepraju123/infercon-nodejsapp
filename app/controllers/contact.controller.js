@@ -1,6 +1,6 @@
 const {isValidUrl} = require('../utils/data.utils.js');
 const db = require("../models");
-const { createWhatsappMessage,createNotificationMessage } = require('../utils/whatsapp.utils.js');
+const { createWhatsappMessage,createNotificationMessage, sendWhatsappMessageToUser } = require('../utils/whatsapp.utils.js');
 const Contact = db.contact;
 const User = db.users
 const path = require('path');
@@ -261,6 +261,42 @@ exports.sendnotification = async (req, res) => {
     } else {
       res.status(404).json({ status_code: 404, message: `Contact with fullname=${user} not found` });
     }
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ status_code: 500, message: "Internal Server Error" });
+  }
+};
+
+exports.sendMessageToUser = async (req, res) => {
+  try {
+    const { contact_ids, message, messageType } = req.body;
+
+    // Iterate over each contact ID
+    for (const contact_id of contact_ids) {
+      // Fetch data from the database based on the contact ID
+      const user = await Contact.findById(contact_id);
+
+      // Check if a contact is found
+      if (user) {
+        // Get the contact number
+        let contactNumber = user.phone; // Assuming 'phone' is a field in your Contact schema
+
+        // If the contact number length is 10, append '91' to the front
+        if (contactNumber.length === 10) {
+          contactNumber = '91' + contactNumber;
+        }
+
+        // Send notification to staff
+        await sendWhatsappMessageToUser(contactNumber, message);
+
+      } else {
+        console.warn(`Contact with ID ${contact_id} not found`);
+      }
+    }
+
+    // Return the response after processing all contacts
+    res.status(200).json({ status_code: 200, message: `Messages sent to contacts` });
+
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ status_code: 500, message: "Internal Server Error" });

@@ -228,4 +228,37 @@ function createNotificationMessage(mobile, count) {
     }
 }
 
-module.exports = { createWhatsappMessage, createWhatsappMessageRegistration, createWhatsappfile, sendBookingNotification, createWhatsappOrderMessage,createNotificationMessage, createplacementDetailsMessage };
+
+function sendWhatsappMessageToUser(mobile, message) {
+    try {
+        const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6";
+
+        // Customize your message template using the provided parameters
+        const messageTemplate = message;
+
+        const payload = {
+            chatId: `${mobile}@c.us`,
+            // chatId : "916381794189@c.us",
+            message: messageTemplate
+        };
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        return axios.post(url, payload, { headers })
+            .then(response => {
+                console.log(response.data);
+                return response.data;  // Assuming you want to return some data after the request
+            })
+            .catch(error => {
+                console.error(error);
+                throw error;  // Rethrow the error to handle it outside the function if needed
+            });
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+}
+
+module.exports = { createWhatsappMessage, createWhatsappMessageRegistration, createWhatsappfile, sendBookingNotification, createWhatsappOrderMessage,createNotificationMessage, createplacementDetailsMessage, sendWhatsappMessageToUser };

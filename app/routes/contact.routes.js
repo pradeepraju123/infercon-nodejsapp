@@ -18,6 +18,8 @@ module.exports = app => {
 
     router.post("/action/send-notification",authenticateToken, contact.sendnotification);
    
+    router.post("/action/send-message",authenticateToken, contact.sendMessageToUser);
+    
     app.use('/api/v1/contact', router);
     
   };
