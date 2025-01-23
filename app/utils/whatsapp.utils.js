@@ -7,6 +7,9 @@ function createWhatsappMessage(fullname, email, phone, course, message, source, 
         // Customize your message template using the provided parameters
         const messageTemplate = `*New enquiry :*\n\n*Source : ${source}*\n\n**Name :* ${fullname}!\n\nWe have received enquiry for this course :  ${course} course.\n\n*Information :*\n\nEmail: ${email}\nPhone: ${phone}\n\nYour Message:\n${message}\n\nAdditional details:\n${additional_details}`;
 
+
+        // const messageTemplate = `Hi ${staff_name},\n\nYou have a new Lead!\n\n*Name:* ${name}\n*Email:* ${email}\n*Mobile:* ${mobile}\n*Course:* ${course}\n\nPlease follow up with the lead as soon as possible.`;
+
         const payload = {
             chatId: "120363029514494201@g.us",
             // chatId : "916381794189@c.us",
@@ -31,6 +34,71 @@ function createWhatsappMessage(fullname, email, phone, course, message, source, 
         return false;
     }
 }
+
+function LeadNotificationToStaff(staff_name,staff_mobile, fullname, email, phone, course) {
+    try {
+        const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6";
+
+        // Customize your message template using the provided parameters
+        // const messageTemplate = `*New enquiry :*\n\n*Source : ${source}*\n\n**Name :* ${fullname}!\n\nWe have received enquiry for this course :  ${course} course.\n\n*Information :*\n\nEmail: ${email}\nPhone: ${phone}\n\nYour Message:\n${message}\n\nAdditional details:\n${additional_details}`;
+
+
+        const messageTemplate = `Hi ${staff_name},\n\nYou have a new Lead!\n\n*Name:* ${fullname}\n*Email:* ${email}\n*Mobile:* ${phone}\n*Course:* ${course}\n\nPlease follow up with the lead as soon as possible.`;
+
+        const payload = {
+            // chatId: "120363029514494201@g.us",
+            chatId : staff_mobile+"@c.us",
+            message: messageTemplate
+        };
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        return axios.post(url, payload, { headers })
+            .then(response => {
+
+                let data = JSON.stringify({
+                    "chatId": staff_mobile+"@c.us",
+                    "contact": {
+                      "phoneContact": phone,
+                      "firstName": fullname,
+                      "middleName": "",
+                      "lastName": "",
+                      "company": ""
+                    }
+                  });
+                  
+                  let config = {
+                    method: 'post',
+                    maxBodyLength: Infinity,
+                    url: "https://api.green-api.com/waInstance1101790684/sendContact/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6",
+                    headers: { 
+                      'Content-Type': 'application/json'
+                    },
+                    data : data
+                  };
+                  
+                  axios.request(config)
+                  .then((response) => {
+                    console.log(JSON.stringify(response.data));
+                  })
+                  .catch((error) => {
+                    console.log(error);
+                  });
+                console.log(response.data);
+                return response.data;  // Assuming you want to return some data after the request
+            })
+            .catch(error => {
+                console.error(error);
+                throw error;  // Rethrow the error to handle it outside the function if needed
+            });
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+}
+
 
 
 function createplacementDetailsMessage(fullname, email, phone, job_id, student_code) {
@@ -261,4 +329,4 @@ function sendWhatsappMessageToUser(mobile, message) {
     }
 }
 
-module.exports = { createWhatsappMessage, createWhatsappMessageRegistration, createWhatsappfile, sendBookingNotification, createWhatsappOrderMessage,createNotificationMessage, createplacementDetailsMessage, sendWhatsappMessageToUser };
+module.exports = { createWhatsappMessage, createWhatsappMessageRegistration, createWhatsappfile, sendBookingNotification, createWhatsappOrderMessage,createNotificationMessage, createplacementDetailsMessage, sendWhatsappMessageToUser, LeadNotificationToStaff };

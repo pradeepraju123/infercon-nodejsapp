@@ -1,14 +1,15 @@
-const {isValidUrl} = require('../utils/data.utils.js');
+const {isValidUrl, LocationMap} = require('../utils/data.utils.js');
 const db = require("../models");
-const { createWhatsappMessage,createNotificationMessage, sendWhatsappMessageToUser } = require('../utils/whatsapp.utils.js');
+const { createWhatsappMessage,createNotificationMessage, sendWhatsappMessageToUser, LeadNotificationToStaff } = require('../utils/whatsapp.utils.js');
 const Contact = db.contact;
 const User = db.users
 const path = require('path');
 const fs = require('fs');
 const exceljs = require('exceljs');
+const moment = require('moment');
 // Create and Save a new Tutorial
 
-exports.create = (req, res) => {
+exports.create = async (req, res) => {
     // Validate request
     if (!req.body.fullname) {
       return res.status(400).json({ status_code: 400, message: "Name can not be empty!" });
@@ -33,6 +34,84 @@ exports.create = (req, res) => {
     if (req.body.message && typeof req.body.message !== 'string') {
         return res.status(400).json({ status_code: 400, message: "Message must be a string." });
       }
+      const fetch = require('node-fetch');
+      let stateName = '';
+      let countryName = '';
+      let cityName = '';
+      let assignee = '';
+      let staff_mobile = '';
+    
+      try {
+        const response = await fetch("https://api.geoapify.com/v1/ipinfo?&apiKey=aa33e979ca2246e2bc742ee17d74ad7a");
+        const result = await response.json();
+        
+        const stateName = req.body.state || result.state.name;
+        const cityName = result.city.name;
+        const countryName = req.body.country || result.country.name;
+        console.log("State name:", stateName);
+        console.log("City name:", cityName);
+        console.log("Country name:", countryName);
+      } catch (error) {
+        console.log('error', error);
+      }
+      let condition = {}
+      if (typeof stateName === 'string' && typeof countryName === 'string') {
+        let normalizedState = stateName.toLowerCase();
+        let normalizedCountry = countryName.toLowerCase();
+      
+        // Fetch all users from the database
+        User.find()
+          .then(users => {
+            console.log("users :: ", users);
+            if (users && users.length > 0) {
+              let foundMatch = false; // Flag to track if a match is found
+      
+              for (let user of users) {
+                console.log("each user :: ", user.name);
+                if (user.preferences) {
+                  console.log('it comes here');
+                  let preferences = user.preferences.toLowerCase();
+                  console.log(preferences);
+                  console.log(normalizedState);
+                  console.log(normalizedCountry);
+      
+                  // Map the state to the region based on the user's preferences
+                  if (preferences === 'south_india' && LocationMap.south_india.map(state => state.toLowerCase()).includes(normalizedState)) {
+                    console.log(`Assigning to ${user.name}`);
+                    assignee = user.name
+                    staff_mobile = user.phone_number
+                    foundMatch = true; // Match found
+                    break; // Exit loop
+                  } else if (preferences === 'north_india' && LocationMap.north_india.map(state => state.toLowerCase()).includes(normalizedState)) {
+                    console.log(`Assigning to ${user.name}`);
+                    assignee = user.name
+                    staff_mobile = user.phone_number
+                    foundMatch = true;
+                    break; // Exit loop
+                  } else if (preferences === 'international' && normalizedCountry !== 'india') {
+                    console.log(`Assigning to ${user.name}`);
+                    assignee = user.name
+                    staff_mobile = user.phone_number
+                    foundMatch = true;
+                    break; // Exit loop
+                  }
+                }
+              }
+      
+              if (!foundMatch) {
+                console.log("No match found for any user based on their preferences and location");
+              }
+            } else {
+              console.log("No users found in the database");
+            }
+          })
+          .catch(error => {
+            console.log("Error fetching users:", error);
+          });
+      }
+    
+    console.log(staff_mobile)
+    
     // Create a Training with event_details and systems_used
     const contact = new Contact({
       fullname: req.body.fullname,
@@ -42,12 +121,22 @@ exports.create = (req, res) => {
       message: req.body.message,
       lead_status: req.body.lead_status,
       source : req.body.source,
-      additional_details : req.body.additional_details
+      additional_details : req.body.additional_details,
+      // city : cityName,
+      state : req.body.state,
+      country : req.body.country,
+      assignee : assignee
+
     });
   // Save the training data
   contact.save()
     .then(data => {
         createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message, data.source, data.additional_details);
+        if (staff_mobile){
+          console.log(staff_mobile)
+          // LeadNotificationToStaff(assignee,staff_mobile, data.fullname, data.email, data.phone, data.course)
+        }
+        
       res.status(201).json({ status_code: 201, message: "Contact created successfully", data: data });
     })
     .catch(err => {
@@ -101,14 +190,32 @@ exports.getAll = (req, res) => {
   }
   // Calculate the number of documents to skip
   // const skip = (pageNum - 1) * pageSize;
-    Contact.find(condition)
+  // Fetch data from the database
+  Contact.find(condition)
     .sort({ createdAt: -1 })
     .then(data => {
-      res.status(200).json({ status_code: 200, message: "Training data retrieved successfully", data: data });
+      // Process the result to extract date and time from createdAt
+      const formattedData = data.map(item => {
+        const createdAt = moment(item.createdAt); // Use moment to format date/time
+        return {
+          ...item._doc, // Copy all other fields
+          created_date: createdAt.format('YYYY-MM-DD'), // Extract date part
+          created_time: createdAt.format('HH:mm:ss') // Extract time part
+        };
+      });
+
+      res.status(200).json({
+        status_code: 200,
+        message: "Training data retrieved successfully",
+        data: formattedData
+      });
     })
     .catch(err => {
       console.error('Error:', err); // Log any errors
-      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving training data." });
+      res.status(500).json({
+        status_code: 500,
+        message: err.message || "Some error occurred while retrieving training data."
+      });
     });
 };
 
