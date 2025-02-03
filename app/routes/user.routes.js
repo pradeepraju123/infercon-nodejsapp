@@ -13,15 +13,21 @@ module.exports = app => {
     // Create a new Tutorial
     router.post("/", users.create);
 
-    router.post("/create", upload.single("file"),users.excelupload);
 
+        //excelupload
+
+    router.post("/bulkpload", upload.single("file"),users.excelupload);
+    router.post("/bulkwhatsmes",users.bulkExcelMes);
 
 
     // Retrieve all Tutorials
     router.post("/login", users.login);
   
     // Retrieve all Tutorials
-    router.get("/", authenticateToken, users.findAll);
+    // router.get("/", authenticateToken, users.findAll);
+
+    router.get("/", users.findAll);
+
   
     // Retrieve all published Tutorials
     router.get("/active", users.findAllActive);
@@ -41,7 +47,6 @@ module.exports = app => {
     // Delete all Tutorials
     router.delete("/", users.deleteAll);
 
-    //excelupload
 
 
   

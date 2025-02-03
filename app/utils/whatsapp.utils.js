@@ -1,5 +1,76 @@
 const axios = require('axios');
+const config = require("../config/config.js");
 
+
+function bulk_users_meg(mobile,name)
+{
+    try {
+
+        const messageTemplate = `*Name :* ${name}\nPhone: ${mobile}`;
+
+        const payload = {
+            chatId : mobile+"@c.us",
+
+           // chatId: `${config.chatId}`,
+            message: messageTemplate
+        };
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        console.log(payload)
+        return axios.post(`${config.whatsappApiUrl}`, payload, { headers })  
+        .then(response => {
+          console.log(response.data);
+          return response.data;  
+        })
+        .catch(error => {
+          console.error(error);
+          throw error;  
+        });
+      
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+
+}
+
+// function bulk_users_meg(mobile,name)
+// {
+//     try {
+//         const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6";
+
+
+//         // Customize your message template using the provided parameters
+//         const messageTemplate = `*Name :* ${name}\nPhone: ${mobile}`;
+
+//         const payload = {
+//             chatId: "120363029514494201@g.us",
+//             message: messageTemplate
+//         };
+
+//         const headers = {
+//             'Content-Type': 'application/json'
+//         };
+
+//         return axios.post(url, payload, { headers })
+//             .then(response => {
+//                 console.log(response.data);
+//                 return response.data;  // Assuming you want to return some data after the request
+//             })
+//             .catch(error => {
+//                 console.error(error);
+//                 throw error;  // Rethrow the error to handle it outside the function if needed
+//             });
+      
+//     } catch (err) {
+//         console.error(err);
+//         return false;
+//     }
+
+// }
 function createWhatsappMessage(fullname, email, phone, course, message, source, additional_details) {
     try {
         const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6";
@@ -329,4 +400,4 @@ function sendWhatsappMessageToUser(mobile, message) {
     }
 }
 
-module.exports = { createWhatsappMessage, createWhatsappMessageRegistration, createWhatsappfile, sendBookingNotification, createWhatsappOrderMessage,createNotificationMessage, createplacementDetailsMessage, sendWhatsappMessageToUser, LeadNotificationToStaff };
+module.exports = { createWhatsappMessage, createWhatsappMessageRegistration, createWhatsappfile, sendBookingNotification, createWhatsappOrderMessage,createNotificationMessage, createplacementDetailsMessage, sendWhatsappMessageToUser, LeadNotificationToStaff ,bulk_users_meg};

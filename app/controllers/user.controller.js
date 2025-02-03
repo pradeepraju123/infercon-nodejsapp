@@ -1,18 +1,12 @@
 const xlsx = require('xlsx');
-
 const db = require("../models");
+const config = require("../config/config.js");
 const User = db.users
 const { hashPassword, generateToken, verifyPassword } = require('../utils/auth.utils.js');
-
-// Create and Save a new Tutorial
-
+const {bulk_users_meg } = require('../utils/whatsapp.utils.js');
 
 
 
-
-const User = require("../models/User"); // Adjust the path based on your project structure
-const bcrypt = require("bcrypt");
-const xlsx = require("xlsx");
 
 
 
@@ -23,13 +17,20 @@ exports.excelupload = async (req, res) => {
       return res.status(400).json({ status_code: 400, message: "No file uploaded." });
     }
 
+   
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
+   
+
     const usersToInsert = [];
 
     for (const row of sheetData) {
+
+      if (!row.username && !row.pass && !row.email && !row.mobile) {
+        return res.status(400).json({ status_code: 400, message: "Content can not be empty!" });
+      }
       if (!row.pass) {
         throw new Error("Password field is missing in the Excel data.");
       }
@@ -57,6 +58,7 @@ exports.excelupload = async (req, res) => {
       await User.insertMany(usersToInsert);
     }
 
+
     return res.status(201).json({
       status_code: 201,
       message: "Excel data inserted successfully",
@@ -73,6 +75,42 @@ exports.excelupload = async (req, res) => {
 };
 
 
+exports.bulkExcelMes = async (req, res) => {
+  try {
+    const users = await User.find({}); // Retrieve all users
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({
+        status_code: 404,
+        message: "No users found to send WhatsApp messages.",
+      });
+    }
+    for (const user of users) {
+      bulk_users_meg(user.phone_number,user.name);
+    }
+    const userMessages = users.map(user => ({
+      name: user.name,
+      mobile: user.phone_number
+    }));
+
+
+   // bulk_users_meg(userMessages);
+
+    return res.status(200).json({
+      status_code: 200,
+      message: "WhatsApp messages processed successfully",
+      data: userMessages, 
+    });
+
+  } catch (error) {
+    console.error("Error processing WhatsApp messages:", error);
+    res.status(500).json({
+      status_code: 500,
+      message: "Error processing WhatsApp messages",
+      error: error.message,
+    });
+  }
+};
 
 exports.create = async (req, res) => {
 
