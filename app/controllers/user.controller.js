@@ -1,9 +1,82 @@
+const xlsx = require('xlsx');
+
 const db = require("../models");
 const User = db.users
 const { hashPassword, generateToken, verifyPassword } = require('../utils/auth.utils.js');
+
 // Create and Save a new Tutorial
 
+
+
+
+
+const User = require("../models/User"); // Adjust the path based on your project structure
+const bcrypt = require("bcrypt");
+const xlsx = require("xlsx");
+
+
+
+exports.excelupload = async (req, res) => {
+  try {
+    // Check if file exists
+    if (!req.file) {
+      return res.status(400).json({ status_code: 400, message: "No file uploaded." });
+    }
+
+    const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+    const sheetName = workbook.SheetNames[0];
+    const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+    const usersToInsert = [];
+
+    for (const row of sheetData) {
+      if (!row.pass) {
+        throw new Error("Password field is missing in the Excel data.");
+      }
+      const encryptedPassword = await hashPassword(row.pass);
+
+
+      const existingUser = await User.findOne({ phone_number: row.mobile });
+
+      if (!existingUser) {
+        const encryptedPassword = await hashPassword(String(row.pass));
+
+        usersToInsert.push({
+          name: row.name,
+          username: row.username,
+          email: row.email,
+          password: encryptedPassword,
+          phone_number: row.mobile || "",
+          active: row.active !== undefined ? row.active : true,
+          userType: row.usertype || "normal",
+        });
+      }
+    }
+
+    if (usersToInsert.length > 0) {
+      await User.insertMany(usersToInsert);
+    }
+
+    return res.status(201).json({
+      status_code: 201,
+      message: "Excel data inserted successfully",
+      inserted_count: usersToInsert.length,
+    });
+  } catch (error) {
+    console.error("Error processing Excel file:", error);
+    res.status(500).json({
+      status_code: 500,
+      message: "Error inserting Excel data",
+      error: error.message,
+    });
+  }
+};
+
+
+
 exports.create = async (req, res) => {
+
+  
   // Validate request
   if (!req.body.username && !req.body.password && !req.body.email && !req.body.phone_number) {
     return res.status(400).json({ status_code: 400, message: "Content can not be empty!" });
@@ -31,6 +104,7 @@ exports.create = async (req, res) => {
       res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while creating the User." });
     });
 };
+
 
 exports.login = async (req, res) => {
   const { username, password } = req.body;

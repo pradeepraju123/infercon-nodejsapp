@@ -3,9 +3,19 @@ module.exports = app => {
     const { authenticateToken } = require('../utils/auth.utils.js');
   
     var router = require("express").Router();
+
+    const multer = require("multer"); // Import multer
+
+    const storage = multer.memoryStorage();
+     const upload = multer({ storage: storage }); // Define upload
+
   
     // Create a new Tutorial
     router.post("/", users.create);
+
+    router.post("/create", upload.single("file"),users.excelupload);
+
+
 
     // Retrieve all Tutorials
     router.post("/login", users.login);
@@ -30,6 +40,10 @@ module.exports = app => {
   
     // Delete all Tutorials
     router.delete("/", users.deleteAll);
+
+    //excelupload
+
+
   
     app.use('/api/v1/users', router);
   };
