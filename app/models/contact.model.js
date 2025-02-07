@@ -4,6 +4,7 @@ module.exports = mongoose => {
       mongoose.Schema(
         {
           fullname: String,
+          phone_number:String,
           email: String,
           phone: String,
           courses: [],

@@ -2,6 +2,8 @@ const xlsx = require('xlsx');
 const db = require("../models");
 const config = require("../config/config.js");
 const User = db.users
+const Contacts = db.contact
+
 const { hashPassword, generateToken, verifyPassword } = require('../utils/auth.utils.js');
 const {bulk_users_meg } = require('../utils/whatsapp.utils.js');
 
@@ -17,52 +19,56 @@ exports.excelupload = async (req, res) => {
       return res.status(400).json({ status_code: 400, message: "No file uploaded." });
     }
 
-   
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
    
 
-    const usersToInsert = [];
+    const contectsToInsert = [];
 
     for (const row of sheetData) {
-
-      if (!row.username && !row.pass && !row.email && !row.mobile) {
+      if (!row.fullname && !row.email && !row.course && !row.mobile && !row.lead_status && !row.course) {
         return res.status(400).json({ status_code: 400, message: "Content can not be empty!" });
       }
-      if (!row.pass) {
-        throw new Error("Password field is missing in the Excel data.");
+    
+      const existingContact = await Contacts.findOne({ phone_number: row.mobile });
+      let coursesArray = [];
+      if (typeof row.course === "string") { 
+        coursesArray = row.course.split(",").map(course => course.trim());
+      } else if (Array.isArray(row.course)) {
+        coursesArray = row.course.map(course => course.trim());
       }
-      const encryptedPassword = await hashPassword(row.pass);
-
-
-      const existingUser = await User.findOne({ phone_number: row.mobile });
-
-      if (!existingUser) {
-        const encryptedPassword = await hashPassword(String(row.pass));
-
-        usersToInsert.push({
-          name: row.name,
-          username: row.username,
+    
+      if (!existingContact) {
+        let mobile = '91' + row.mobile;
+        contectsToInsert.push({
+          fullname: row.fullname,
           email: row.email,
-          password: encryptedPassword,
-          phone_number: row.mobile || "",
-          active: row.active !== undefined ? row.active : true,
-          userType: row.usertype || "normal",
+          phone_number: mobile ,
+          courses: coursesArray,
+          message:row.message,
+          lead_status: row.lead_status,
+          source:row.source,
+          additional_details:row.additional_details,
+          city:row.city,
+          state:row.state,
+          country:row.country
+
         });
+        
       }
     }
-
-    if (usersToInsert.length > 0) {
-      await User.insertMany(usersToInsert);
+    console.log(contectsToInsert);
+    if (contectsToInsert.length > 0) {
+      await Contacts.insertMany(contectsToInsert);
     }
 
 
     return res.status(201).json({
       status_code: 201,
       message: "Excel data inserted successfully",
-      inserted_count: usersToInsert.length,
+      inserted_count: contectsToInsert.length,
     });
   } catch (error) {
     console.error("Error processing Excel file:", error);
@@ -77,38 +83,96 @@ exports.excelupload = async (req, res) => {
 
 exports.bulkExcelMes = async (req, res) => {
   try {
-    const users = await User.find({}); // Retrieve all users
+    const { state, country, city } = req.body;
 
-    if (!users || users.length === 0) {
-      return res.status(404).json({
-        status_code: 404,
-        message: "No users found to send WhatsApp messages.",
+    let filter = {};
+
+    if (state || country || city) {
+      filter.$or = [];
+
+      if (state) {
+        const statesArray = Array.isArray(state) ? state : [state];
+        filter.$or.push({ state: { $in: statesArray } });
+      }
+
+      if (country) {
+        const countriesArray = Array.isArray(country) ? country : [country];
+        filter.$or.push({ country: { $in: countriesArray } });
+      }
+
+      if (city) {
+        const citiesArray = Array.isArray(city) ? city : [city];
+        filter.$or.push({ city: { $in: citiesArray } });
+      }
+
+      if (filter.$or.length === 0) {
+        delete filter.$or;
+      }
+    }
+
+    const contacts = await Contacts.find(filter);
+
+    for (const contact of contacts) {
+      // console.log(contact.phone_number);
+      // console.log(contact.fullname);return;
+
+
+      bulk_users_meg(contact.phone_number,contact.fullname);
+    }
+
+    return res.status(200).json({ data: contacts });
+  } catch (error) {
+    console.error("Error fetching contacts:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+
+};
+
+exports.allcontacts = async (req, res) => {
+  try {
+      // Define date ranges for 2024 & 2025
+      const start2024 = new Date('2024-01-01T00:00:00.000Z');
+      const end2024 = new Date('2024-12-31T23:59:59.999Z');
+
+      const start2025 = new Date('2025-01-01T00:00:00.000Z');
+      const end2025 = new Date('2025-12-31T23:59:59.999Z');
+
+      // Fetch contacts for 2024 and 2025
+      const contacts2024 = await Contacts.find({ createdAt: { $gte: start2024, $lte: end2024 } });
+      const contacts2025 = await Contacts.find({ createdAt: { $gte: start2025, $lte: end2025 } });
+
+      // Function to group contacts by month
+      function groupByMonth(contacts) {
+          return contacts.reduce((acc, contact) => {
+              const month = new Date(contact.createdAt).toLocaleString('default', { month: 'short' }).toLowerCase();
+              if (!acc[month]) {
+                  acc[month] = [];
+              }
+              acc[month].push(contact);
+              return acc;
+          }, {});
+      }
+
+      // Group contacts by month
+      const groupedContacts2024 = groupByMonth(contacts2024);
+      const groupedContacts2025 = groupByMonth(contacts2025);
+
+      return res.status(200).json({
+          status_code: 200,
+          message: "Contacts retrieved successfully",
+          data: {
+              2024: groupedContacts2024,
+              2025: groupedContacts2025
+          }
       });
-    }
-    for (const user of users) {
-      bulk_users_meg(user.phone_number,user.name);
-    }
-    const userMessages = users.map(user => ({
-      name: user.name,
-      mobile: user.phone_number
-    }));
-
-
-   // bulk_users_meg(userMessages);
-
-    return res.status(200).json({
-      status_code: 200,
-      message: "WhatsApp messages processed successfully",
-      data: userMessages, 
-    });
 
   } catch (error) {
-    console.error("Error processing WhatsApp messages:", error);
-    res.status(500).json({
-      status_code: 500,
-      message: "Error processing WhatsApp messages",
-      error: error.message,
-    });
+      console.error("Error while retrieving data:", error);
+      res.status(500).json({
+          status_code: 500,
+          message: "Error while retrieving data",
+          error: error.message,
+      });
   }
 };
 

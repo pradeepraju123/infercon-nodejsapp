@@ -14,14 +14,17 @@ module.exports = app => {
     router.post("/", users.create);
 
 
-        //excelupload
+    //excelupload
+    // router.post("/bulkupload", authenticateToken,upload.single("file"),users.excelupload);
+    router.post("/bulkupload",upload.single("file"),users.excelupload);
 
-    router.post("/bulkpload", upload.single("file"),users.excelupload);
     router.post("/bulkwhatsmes",users.bulkExcelMes);
+    router.get("/getall",users.allcontacts);
+
 
 
     // Retrieve all Tutorials
-    router.post("/login", users.login);
+    router.post("/login", users.login); 
   
     // Retrieve all Tutorials
     // router.get("/", authenticateToken, users.findAll);
