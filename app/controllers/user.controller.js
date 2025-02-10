@@ -23,8 +23,7 @@ exports.excelupload = async (req, res) => {
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-   
-
+  
     const contectsToInsert = [];
 
     for (const row of sheetData) {
@@ -53,7 +52,8 @@ exports.excelupload = async (req, res) => {
           additional_details:row.additional_details,
           city:row.city,
           state:row.state,
-          country:row.country
+          country:row.country,
+          excel_upload:'1'
 
         });
         
@@ -83,9 +83,18 @@ exports.excelupload = async (req, res) => {
 
 exports.bulkExcelMes = async (req, res) => {
   try {
-    const { state, country, city } = req.body;
+    const { state, country, city, startDate, endDate } = req.body;
 
-    let filter = {};
+    if (!startDate || !endDate) {
+      return res.status(400).json({ message: "startDate and endDate are required" });
+    }
+
+    let filter = {
+      createdAt: {
+        $gte: new Date(startDate), // Start date (inclusive)
+        $lte: new Date(endDate),   // End date (inclusive)
+      }
+    };
 
     if (state || country || city) {
       filter.$or = [];

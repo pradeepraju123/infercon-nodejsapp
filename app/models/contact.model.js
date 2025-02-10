@@ -15,7 +15,9 @@ module.exports = mongoose => {
           additional_details: String,
           city: String,
           state: String,
-          country: String
+          country: String,
+          excel_upload: { type: Number, default: 0 } // Default value set to 0
+
         },
         { timestamps: true }
       )
