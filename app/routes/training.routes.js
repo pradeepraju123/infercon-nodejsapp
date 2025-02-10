@@ -12,7 +12,11 @@ module.exports = app => {
     router.get("/search", trainings.searchByTitle)
   
     // Retrieve all published Tutorials
-    router.get("/published", trainings.findAllPublished);
+    router.post("/published", trainings.findAllPublished);
+
+    // Retrieve all featured Trainings
+
+    router.get("/featured", trainings.findAllFeatured);
   
     // Retrieve a single Tutorial with id
     router.get("/:id", trainings.findOne);
