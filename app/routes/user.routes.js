@@ -1,24 +1,20 @@
 module.exports = app => {
     const users = require("../controllers/user.controller.js");
     const { authenticateToken } = require('../utils/auth.utils.js');
-  
     var router = require("express").Router();
-
     const multer = require("multer"); // Import multer
-
     const storage = multer.memoryStorage();
-     const upload = multer({ storage: storage }); // Define upload
+    const upload = multer({ storage: storage }); // Define upload
 
-  
     // Create a new Tutorial
     router.post("/", users.create);
 
 
     //excelupload
-    // router.post("/bulkupload", authenticateToken,upload.single("file"),users.excelupload);
-    router.post("/bulkupload",upload.single("file"),users.excelupload);
+     router.post("/bulkupload", authenticateToken,upload.single("file"),users.excelupload);
+    //router.post("/bulkupload",upload.single("file"),users.excelupload);
 
-    router.post("/bulkwhatsmes",users.bulkExcelMes);
+    router.post("/bulkwhatsmes",authenticateToken,users.bulkExcelMes);
     router.get("/getall",users.allcontacts);
 
 

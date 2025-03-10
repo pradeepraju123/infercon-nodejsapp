@@ -10,8 +10,6 @@ const {bulk_users_meg } = require('../utils/whatsapp.utils.js');
 
 
 
-
-
 exports.excelupload = async (req, res) => {
   try {
     // Check if file exists
@@ -22,10 +20,7 @@ exports.excelupload = async (req, res) => {
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
-
-  
     const contectsToInsert = [];
-
     for (const row of sheetData) {
       if (!row.fullname && !row.email && !row.course && !row.mobile && !row.lead_status && !row.course) {
         return res.status(400).json({ status_code: 400, message: "Content can not be empty!" });
@@ -84,18 +79,18 @@ exports.excelupload = async (req, res) => {
 exports.bulkExcelMes = async (req, res) => {
   try {
     const { state, country, city, startDate, endDate } = req.body;
-
     if (!startDate || !endDate) {
       return res.status(400).json({ message: "startDate and endDate are required" });
     }
-
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
     let filter = {
       createdAt: {
-        $gte: new Date(startDate), // Start date (inclusive)
-        $lte: new Date(endDate),   // End date (inclusive)
+        $gte: start, 
+        $lte: end,  
       }
     };
-
     if (state || country || city) {
       filter.$or = [];
 
@@ -103,7 +98,6 @@ exports.bulkExcelMes = async (req, res) => {
         const statesArray = Array.isArray(state) ? state : [state];
         filter.$or.push({ state: { $in: statesArray } });
       }
-
       if (country) {
         const countriesArray = Array.isArray(country) ? country : [country];
         filter.$or.push({ country: { $in: countriesArray } });
@@ -118,17 +112,12 @@ exports.bulkExcelMes = async (req, res) => {
         delete filter.$or;
       }
     }
-
     const contacts = await Contacts.find(filter);
-
     for (const contact of contacts) {
       // console.log(contact.phone_number);
       // console.log(contact.fullname);return;
-
-
       bulk_users_meg(contact.phone_number,contact.fullname);
     }
-
     return res.status(200).json({ data: contacts });
   } catch (error) {
     console.error("Error fetching contacts:", error);
@@ -142,14 +131,11 @@ exports.allcontacts = async (req, res) => {
       // Define date ranges for 2024 & 2025
       const start2024 = new Date('2024-01-01T00:00:00.000Z');
       const end2024 = new Date('2024-12-31T23:59:59.999Z');
-
       const start2025 = new Date('2025-01-01T00:00:00.000Z');
       const end2025 = new Date('2025-12-31T23:59:59.999Z');
-
       // Fetch contacts for 2024 and 2025
       const contacts2024 = await Contacts.find({ createdAt: { $gte: start2024, $lte: end2024 } });
       const contacts2025 = await Contacts.find({ createdAt: { $gte: start2025, $lte: end2025 } });
-
       // Function to group contacts by month
       function groupByMonth(contacts) {
           return contacts.reduce((acc, contact) => {
@@ -231,7 +217,6 @@ exports.login = async (req, res) => {
     return res.status(401).json({ status_code: 401, message: 'Invalid credentials' });
   } else {
     const token = generateToken(user);
-
     // Construct and send the success response with userType
     const response = {
       status_code: 200,
@@ -269,7 +254,7 @@ exports.findAllPost = (req, res) => {
     condition.$or = [
       { username: { $regex: new RegExp(searchTerm, 'i') } }, // Replace 'field1' with the actual field to search
       { name: { $regex: new RegExp(searchTerm, 'i') } },
-      {userType: { $regex: new RegExp(searchTerm, 'i') }}
+      {userType: { $regex: new RegExp(searchTerm, 'i') }} 
       // Add more fields as needed
     ];
   }
