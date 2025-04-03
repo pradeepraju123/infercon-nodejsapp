@@ -14,7 +14,7 @@ module.exports = app => {
      router.post("/bulkupload", authenticateToken,upload.single("file"),users.excelupload);
     //router.post("/bulkupload",upload.single("file"),users.excelupload);
 
-    router.post("/bulkwhatsmes",authenticateToken,users.bulkExcelMes);
+    router.post("/bulkwhatsmes",users.bulkExcelMes);
     router.get("/getall",users.allcontacts);
 
 

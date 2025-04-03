@@ -16,7 +16,6 @@ exports.excelupload = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ status_code: 400, message: "No file uploaded." });
     }
-
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
@@ -58,8 +57,6 @@ exports.excelupload = async (req, res) => {
     if (contectsToInsert.length > 0) {
       await Contacts.insertMany(contectsToInsert);
     }
-
-
     return res.status(201).json({
       status_code: 201,
       message: "Excel data inserted successfully",
@@ -113,6 +110,8 @@ exports.bulkExcelMes = async (req, res) => {
       }
     }
     const contacts = await Contacts.find(filter);
+    console.log(contacts);return;
+   
     for (const contact of contacts) {
       // console.log(contact.phone_number);
       // console.log(contact.fullname);return;
@@ -133,9 +132,11 @@ exports.allcontacts = async (req, res) => {
       const end2024 = new Date('2024-12-31T23:59:59.999Z');
       const start2025 = new Date('2025-01-01T00:00:00.000Z');
       const end2025 = new Date('2025-12-31T23:59:59.999Z');
+
       // Fetch contacts for 2024 and 2025
       const contacts2024 = await Contacts.find({ createdAt: { $gte: start2024, $lte: end2024 } });
       const contacts2025 = await Contacts.find({ createdAt: { $gte: start2025, $lte: end2025 } });
+
       // Function to group contacts by month
       function groupByMonth(contacts) {
           return contacts.reduce((acc, contact) => {
@@ -156,8 +157,14 @@ exports.allcontacts = async (req, res) => {
           status_code: 200,
           message: "Contacts retrieved successfully",
           data: {
-              2024: groupedContacts2024,
-              2025: groupedContacts2025
+            contacts_2024: {
+                  total: contacts2024.length,
+                  contacts: groupedContacts2024
+              },
+              contacts_2025: {
+                  total: contacts2025.length,
+                  contacts: groupedContacts2025
+              }
           }
       });
 
@@ -170,6 +177,7 @@ exports.allcontacts = async (req, res) => {
       });
   }
 };
+
 
 exports.create = async (req, res) => {
 
