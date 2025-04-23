@@ -329,4 +329,37 @@ function sendWhatsappMessageToUser(mobile, message) {
     }
 }
 
-module.exports = { createWhatsappMessage, createWhatsappMessageRegistration, createWhatsappfile, sendBookingNotification, createWhatsappOrderMessage,createNotificationMessage, createplacementDetailsMessage, sendWhatsappMessageToUser, LeadNotificationToStaff };
+
+function createfacebook_leads(fullname, email, phone, job_title) {
+    try {
+        const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6";
+
+        // Customize your message template using the provided parameters
+        const messageTemplate = `*Facebook Lead*\n\nFullName :*\n*Name :* ${fullname}!\n\nJob_title :  ${job_title}.\n\n*Information :*\n\nEmail: ${email}\nPhone: ${phone}\n`;
+
+        const payload = {
+            chatId: "120363029514494201@g.us",
+            // chatId : "916381794189@c.us",
+            message: messageTemplate
+        };
+
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+
+        return axios.post(url, payload, { headers })
+            .then(response => {
+                console.log(response.data);
+                return response.data;  // Assuming you want to return some data after the request
+            })
+            .catch(error => {
+                console.error(error);
+                throw error;  // Rethrow the error to handle it outside the function if needed
+            });
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+}
+
+module.exports = { createWhatsappMessage, createWhatsappMessageRegistration, createWhatsappfile, sendBookingNotification, createWhatsappOrderMessage,createNotificationMessage, createplacementDetailsMessage, sendWhatsappMessageToUser, LeadNotificationToStaff,createfacebook_leads };
