@@ -3,7 +3,6 @@ const db = require("../models");
 const config = require("../config/config.js");
 const User = db.users
 const Contacts = db.contact
-
 const { hashPassword, generateToken, verifyPassword } = require('../utils/auth.utils.js');
 const {bulk_users_meg } = require('../utils/whatsapp.utils.js');
 
@@ -57,11 +56,19 @@ exports.excelupload = async (req, res) => {
     if (contectsToInsert.length > 0) {
       await Contacts.insertMany(contectsToInsert);
     }
-    return res.status(201).json({
-      status_code: 201,
-      message: "Excel data inserted successfully",
-      inserted_count: contectsToInsert.length,
-    });
+    const contacts = await Contacts.find();
+    if (!contacts.length) {
+      return res.status(404).json({ message: "No contacts found"});
+    }
+    for (const contact of contacts) {
+      await bulk_users_meg(contact.phone_number, contact.fullname);
+    }
+    return res.status(200).json({ message: "Messages sent successfully", });
+    // return res.status(201).json({
+    //   status_code: 201,
+    //   message: "Excel data inserted successfully",
+    //   inserted_count: contectsToInsert.length,
+    // });
   } catch (error) {
     console.error("Error processing Excel file:", error);
     res.status(500).json({
@@ -72,6 +79,22 @@ exports.excelupload = async (req, res) => {
   }
 };
 
+
+exports.bulkExcelMes1 = async (req, res) => {
+  try {
+    const contacts = await Contacts.find();
+    if (!contacts.length) {
+      return res.status(404).json({ message: "No contacts found"});
+    }
+    for (const contact of contacts) {
+      await bulk_users_meg(contact.phone_number, contact.fullname);
+    }
+    return res.status(200).json({ message: "Messages sent successfully", data: contacts });
+  } catch (error) {
+    console.error("Error fetching contacts:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
 
 exports.bulkExcelMes = async (req, res) => {
   try {
