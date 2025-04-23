@@ -18,34 +18,56 @@ exports.excelupload = async (req, res) => {
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    return res.status(400).json({ status_code: 400, data: sheetData});
+    return
+
     const contectsToInsert = [];
     for (const row of sheetData) {
       if (!row.fullname && !row.email && !row.course && !row.mobile && !row.lead_status && !row.course) {
         return res.status(400).json({ status_code: 400, message: "Content can not be empty!" });
       }
-    
       const existingContact = await Contacts.findOne({ phone_number: row.mobile });
       let coursesArray = [];
+      let locationArray = [];
+      let languagesArray = [];
+
       if (typeof row.course === "string") { 
         coursesArray = row.course.split(",").map(course => course.trim());
       } else if (Array.isArray(row.course)) {
         coursesArray = row.course.map(course => course.trim());
       }
+      if (typeof row.location === "string") { 
+        locationArray = row.location.split(",").map(location => location.trim());
+      } else if (Array.isArray(row.location)) {
+        locationArray = row.location.map(location => location.trim());
+      }
+      if (typeof row.languages === "string") { 
+        languagesArray = row.languages.split(",").map(languages => languages.trim());
+      } else if (Array.isArray(row.languages)) {
+        languagesArray = row.languages.map(languages => languages.trim());
+      }
     
       if (!existingContact) {
         let mobile = '91' + row.mobile;
         contectsToInsert.push({
+          date_of_enquiry:row.date_of_enquiry,
           fullname: row.fullname,
+          location:row.locationArray,
+          phone_number: mobile,
           email: row.email,
-          phone_number: mobile ,
           courses: coursesArray,
-          message:row.message,
-          lead_status: row.lead_status,
           source:row.source,
+          degree:row.degree,
+          specification:row.specification,
+          year_of_study:row.year_of_study,
+          experience:row.experience,
+          is_msg:row.msg,
+          is_call:row.call,
+          is_mail:row.mail,
+          is_fee:is_fee,
+          languages:languagesArray,
+          candidate_status:candidate_status,
           additional_details:row.additional_details,
-          city:row.city,
-          state:row.state,
-          country:row.country,
           excel_upload:'1'
 
         });
