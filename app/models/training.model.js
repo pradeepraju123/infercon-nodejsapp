@@ -13,8 +13,11 @@ module.exports = mongoose => {
           short_description: String,
           description: String,
           published: Boolean,
+          featured: Boolean,
           image: String,
           second_image: String,
+          related_trainings: [],
+          certificate_image: String,
           slug: String,
           event_details: [
             {
@@ -31,6 +34,7 @@ module.exports = mongoose => {
           additional_details: [
             {
               super_title: String,
+              super_description: String,
               title: String,
               detail: String,
               type_detail: String
