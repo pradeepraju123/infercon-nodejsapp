@@ -4,13 +4,13 @@ const FacebookLead = db.facebook;
 
 // Create a new Facebook Lead
 exports.create = (req, res) => {
-  const { fullname, email, phone, job_title } = req.body;
+  const { fullname, phone } = req.body;
 
 
-    const lead = new FacebookLead({ fullname, email, phone, job_title });
+    const lead = new FacebookLead({ fullname, phone });
     lead.save()
     .then(data => {
-        createfacebook_leads(data.fullname, data.email, data.phone, data.job_title)
+        createfacebook_leads(data.fullname, data.phone)
       res.status(201).json({ status_code: 201, message: "Facebook_leads created successfully", data: data });
     })
     .catch(err => {

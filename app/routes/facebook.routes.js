@@ -1,5 +1,5 @@
 module.exports = app => {
-    const facebook = require("../controllers/facebook.controller.js");
+    const facebook = require("../controllers/web.controller.js");
     const router = require("express").Router();
   
    

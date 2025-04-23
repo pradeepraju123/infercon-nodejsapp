@@ -330,12 +330,12 @@ function sendWhatsappMessageToUser(mobile, message) {
 }
 
 
-function createfacebook_leads(fullname, email, phone, job_title) {
+function createfacebook_leads(fullname, phone) {
     try {
         const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6";
 
         // Customize your message template using the provided parameters
-        const messageTemplate = `*Facebook Lead*\n\nFullName :*\n*Name :* ${fullname}!\n\nJob_title :  ${job_title}.\n\n*Information :*\n\nEmail: ${email}\nPhone: ${phone}\n`;
+        const messageTemplate = `*Facebook Lead*\n\n *FullName :* ${fullname}!\n\n *Phone:* ${phone}\n`;
 
         const payload = {
             chatId: "120363029514494201@g.us",

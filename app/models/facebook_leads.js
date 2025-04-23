@@ -4,9 +4,7 @@ module.exports = mongoose => {
       mongoose.Schema(
         {
           fullname: String,
-          email: String,
-          phone: String,
-          job_title:String
+          phone: String
         },
         { timestamps: true }
       )
