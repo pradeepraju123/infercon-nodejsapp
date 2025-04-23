@@ -55,9 +55,12 @@ exports.create = (req, res) => {
       courses_type : req.body.courses_type,
       sub_type: req.body.sub_type,
       meta_description: req.body.meta_description,
+      related_trainings: req.body.related_trainings || [],
       image: req.body.image !== "" ? req.body.image : undefined,
       second_image: req.body.second_image !== "" ? req.body.second_image : undefined,
+      certificate_image: req.body.certificate_image !== "" ? req.body.certificate_image : undefined,
       published: req.body.published || false,
+      featured: req.body.featured || false,
       event_details: req.body.event_details || [],
       systems_used: req.body.systems_used || [],
       additional_details: req.body.additional_details || [],
@@ -92,7 +95,7 @@ exports.findBySlug = (req, res) => {
 
 
 exports.getAll = (req, res) => {
-      const { searchTerm, start_date, end_date, published, sort_by, page_size, page_num } = req.body;
+      const { searchTerm, start_date, end_date, published, sort_by, page_size, page_num, training_ids } = req.body;
       console.log('Body Parameters:', req.body);
     
       // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
@@ -104,6 +107,14 @@ exports.getAll = (req, res) => {
       if (searchTerm) {
         condition.title = { $regex: new RegExp(searchTerm, "i") };
       }
+
+      console.log(training_ids);
+      if (training_ids){
+        console.log('it satisfy')
+        condition.related_trainings = training_ids
+      }
+      
+
     
       // Add filtering conditions based on the provided parameters
       if (start_date && end_date) {
@@ -119,7 +130,7 @@ exports.getAll = (req, res) => {
     
       // Calculate the number of documents to skip
       const skip = (pageNum - 1) * pageSize;
-    
+      console.log(condition)
       Training.find(condition)
         .sort({ [sort_by]: 1 })
         .skip(skip)
@@ -132,6 +143,8 @@ exports.getAll = (req, res) => {
           res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving training data." });
         });
     };
+
+  
     
 
 
@@ -246,11 +259,29 @@ exports.deleteAll = (req, res) => {
 
 // Find all published Trainings
 exports.findAllPublished = (req, res) => {
-  Training.find({ published: true })
+  const { training_ids } = req.body;
+  let condition = {};
+
+  condition._id = { $in: training_ids };
+
+  console.log(condition)
+  condition.published = true
+  Training.find(condition)
     .then(data => {
       res.status(200).json({ status_code: 200, message: "Published training retrieved successfully", data: data });
     })
     .catch(err => {
       res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving published training" });
+    });
+};
+
+// Find all published Blogs
+exports.findAllFeatured = (req, res) => {
+  Training.find({ featured: true, published: true })
+    .then(data => {
+      res.status(200).json({ status_code: 200, message: "Featured training retrieved successfully", data: data });
+    })
+    .catch(err => {
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving featured training" });
     });
 };

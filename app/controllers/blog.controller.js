@@ -51,6 +51,7 @@ exports.findAll = (req, res) => {
 
   Blog.find(condition)
     .limit(Limit)
+    .sort({createdAt: -1})
     .then(data => {
       res.status(200).json({
         status_code: 200,
@@ -145,3 +146,4 @@ exports.findAllPublished = (req, res) => {
       res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving published blog" });
     });
 };
+
