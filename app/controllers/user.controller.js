@@ -18,8 +18,8 @@ exports.excelupload = async (req, res) => {
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
-    return res.status(400).json({ status_code: 400, data: sheetData});
-    return
+    // return res.status(400).json({ status_code: 400, data: sheetData});
+    // return
 
     const contectsToInsert = [];
     for (const row of sheetData) {

@@ -4,38 +4,6 @@ const cors = require("cors");
 const db = require("./app/models");
 const app = express();
 
-const { SuperfaceClient } = require('@superfaceai/one-sdk');
-
-const sdk = new SuperfaceClient();
-async function run(ip) {
-  // Load the profile
-  const profile = await sdk.getProfile("address/ip-geolocation@1.0.1");
-
-  // Use the profile
-  const result = await profile.getUseCase("IpGeolocation").perform(
-    {
-      ipAddress: ip
-    },
-    {
-      provider: "ipdata",
-      security: {
-        apikey: {
-          apikey: "65eb83e81e7f22df210cb1eaac5ea0abd103c04abc38908c2647864f"
-        }
-      }
-    }
-  );
-
-  // Handle the result
-  try {
-    const data = result.unwrap();
-    console.log(data)
-    return data;
-  } catch (error) {
-    console.error(error);
-  }
-}
-
 var corsOptions = {
   origin: "*"
 };
@@ -64,7 +32,6 @@ db.mongoose
 // simple route
 app.get("/",async (req, res) => {
   res.json({ message: "Welcome to Infercon." });
-  res.send(await run(req.ip));
 });
 
 require("./app/routes/blog.routes.js")(app);
