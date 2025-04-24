@@ -15,18 +15,20 @@ exports.excelupload = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ status_code: 400, message: "No file uploaded." });
     }
+
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
-    return res.status(400).json({ status_code: 400, data: sheetData});
-    return
 
     const contectsToInsert = [];
+
     for (const row of sheetData) {
-      if (!row.fullname && !row.email && !row.course && !row.mobile && !row.lead_status && !row.course) {
+      if (!row.fullname && !row.email && !row.course && !row.mobile && !row.lead_status) {
         return res.status(400).json({ status_code: 400, message: "Content can not be empty!" });
       }
-      const existingContact = await Contacts.findOne({ phone_number: row.mobile });
+
+      const existingContact = await Contacts.findOne({ phone_number: '91' + row.mobile });
+
       let coursesArray = [];
       let locationArray = [];
       let languagesArray = [];
@@ -36,70 +38,79 @@ exports.excelupload = async (req, res) => {
       } else if (Array.isArray(row.course)) {
         coursesArray = row.course.map(course => course.trim());
       }
+
       if (typeof row.location === "string") { 
         locationArray = row.location.split(",").map(location => location.trim());
       } else if (Array.isArray(row.location)) {
         locationArray = row.location.map(location => location.trim());
       }
-      if (typeof row.languages === "string") { 
-        languagesArray = row.languages.split(",").map(languages => languages.trim());
-      } else if (Array.isArray(row.languages)) {
-        languagesArray = row.languages.map(languages => languages.trim());
-      }
-    
-      if (!existingContact) {
-        let mobile = '91' + row.mobile;
-        contectsToInsert.push({
-          date_of_enquiry:row.date_of_enquiry,
-          fullname: row.fullname,
-          location:row.locationArray,
-          phone_number: mobile,
-          email: row.email,
-          courses: coursesArray,
-          source:row.source,
-          degree:row.degree,
-          specification:row.specification,
-          year_of_study:row.year_of_study,
-          experience:row.experience,
-          is_msg:row.msg,
-          is_call:row.call,
-          is_mail:row.mail,
-          is_fee:is_fee,
-          languages:languagesArray,
-          lead_status:candidate_status,
-          additional_details:row.additional_details,
-          excel_upload:'1'
 
-        });
-        
+      if (typeof row.languages === "string") { 
+        languagesArray = row.languages.split(",").map(lang => lang.trim());
+      } else if (Array.isArray(row.languages)) {
+        languagesArray = row.languages.map(lang => lang.trim());
+      }
+
+      let mobile = '91' + row.mobile;
+      const contactData = {
+        date_of_enquiry: row.date_of_enquiry,
+        fullname: row.fullname,
+        location: locationArray,
+        phone_number: mobile,
+        email: row.email,
+        courses: coursesArray,
+        source: row.source,
+        degree: row.degree,
+        specification: row.specification,
+        year_of_study: row.year_of_study,
+        experience: row.experience,
+        is_msg: row.msg,
+        is_call: row.call,
+        is_mail: row.mail,
+        is_fee: row.is_fee,
+        languages: languagesArray,
+        lead_status: row.lead_status,
+        additional_details: row.additional_details,
+        excel_upload: '1'
+      };
+// console.log(contactData);return;
+      if (!existingContact) {
+        contectsToInsert.push(contactData);
+      } else {
+        await Contacts.updateOne(
+          { phone_number: mobile },
+          { $set: contactData }
+        );
       }
     }
-    console.log(contectsToInsert);
+
+    // Insert new contacts
     if (contectsToInsert.length > 0) {
       await Contacts.insertMany(contectsToInsert);
     }
+
+    // Fetch all contacts and send messages
     const contacts = await Contacts.find();
     if (!contacts.length) {
-      return res.status(404).json({ message: "No contacts found"});
+      return res.status(404).json({ message: "No contacts found" });
     }
-    for (const contact of contacts) {
-      await bulk_users_meg(contact.phone_number, contact.fullname);
-    }
-    return res.status(200).json({ message: "Messages sent successfully", });
-    // return res.status(201).json({
-    //   status_code: 201,
-    //   message: "Excel data inserted successfully",
-    //   inserted_count: contectsToInsert.length,
-    // });
+
+    // for (const contact of contacts) {
+    //   await bulk_users_meg(contact.phone_number, contact.fullname);
+    // }
+
+    return res.status(200).json({ message: "Excel processed successfully. Messages sent." });
+
   } catch (error) {
     console.error("Error processing Excel file:", error);
     res.status(500).json({
       status_code: 500,
-      message: "Error inserting Excel data",
+      message: "Error inserting/updating Excel data",
       error: error.message,
     });
   }
 };
+
 
 
 exports.bulkExcelMes1 = async (req, res) => {
