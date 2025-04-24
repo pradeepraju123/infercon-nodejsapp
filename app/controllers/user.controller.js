@@ -66,7 +66,7 @@ exports.excelupload = async (req, res) => {
           is_mail:row.mail,
           is_fee:is_fee,
           languages:languagesArray,
-          candidate_status:candidate_status,
+          lead_status:candidate_status,
           additional_details:row.additional_details,
           excel_upload:'1'
 
