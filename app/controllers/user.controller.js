@@ -7,105 +7,111 @@ const { hashPassword, generateToken, verifyPassword } = require('../utils/auth.u
 const {bulk_users_meg } = require('../utils/whatsapp.utils.js');
 
 
-
+const excelDateToJSDate = (serial) => {
+  const utc_days = Math.floor(serial - 25569);
+  const utc_value = utc_days * 86400; // seconds since epoch
+  const date_info = new Date(utc_value * 1000);
+  return date_info.toISOString().split("T")[0];
+};
 
 exports.excelupload = async (req, res) => {
   try {
-    // Check if file exists
     if (!req.file) {
       return res.status(400).json({ status_code: 400, message: "No file uploaded." });
     }
-
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    const contectsToInsert = [];
+    const newContactsToInsert = [];
+    const insertedContactsForMsg = [];
 
     for (const row of sheetData) {
-      if (!row.fullname && !row.email && !row.course && !row.mobile && !row.lead_status) {
-        return res.status(400).json({ status_code: 400, message: "Content can not be empty!" });
+      if (!row.fullname && !row.email && !row.course && !row.phone_number && !row.lead_status) {
+        return res.status(400).json({ status_code: 400, message: "Content cannot be empty!" });
       }
 
-      const existingContact = await Contacts.findOne({ phone_number: '91' + row.mobile });
+      const coursesArray = typeof row.courses === "string"
+        ? row.courses.split(",").map(course => course.trim())
+        : Array.isArray(row.courses)
+          ? row.courses.map(course => course.trim())
+          : [];
 
-      let coursesArray = [];
-      let locationArray = [];
-      let languagesArray = [];
+      const locationArray = typeof row.location === "string"
+        ? row.location.split(",").map(loc => loc.trim())
+        : Array.isArray(row.location)
+          ? row.location.map(loc => loc.trim())
+          : [];
 
-      if (typeof row.course === "string") { 
-        coursesArray = row.course.split(",").map(course => course.trim());
-      } else if (Array.isArray(row.course)) {
-        coursesArray = row.course.map(course => course.trim());
-      }
+      const languagesArray = typeof row.languages === "string"
+        ? row.languages.split(",").map(lang => lang.trim())
+        : Array.isArray(row.languages)
+          ? row.languages.map(lang => lang.trim())
+          : [];
 
-      if (typeof row.location === "string") { 
-        locationArray = row.location.split(",").map(location => location.trim());
-      } else if (Array.isArray(row.location)) {
-        locationArray = row.location.map(location => location.trim());
-      }
+      const mobile = '91' + row.phone_number;
+      const existingContact = await Contacts.findOne({ phone_number: mobile });
 
-      if (typeof row.languages === "string") { 
-        languagesArray = row.languages.split(",").map(lang => lang.trim());
-      } else if (Array.isArray(row.languages)) {
-        languagesArray = row.languages.map(lang => lang.trim());
-      }
-
-      let mobile = '91' + row.mobile;
       const contactData = {
-        date_of_enquiry: row.date_of_enquiry,
+        date_of_enquiry: typeof row.date_of_enquiry === "number"
+          ? excelDateToJSDate(row.date_of_enquiry)
+          : row.date_of_enquiry || null,
         fullname: row.fullname,
         location: locationArray,
         phone_number: mobile,
         email: row.email,
         courses: coursesArray,
-        source: row.source,
-        degree: row.degree,
-        specification: row.specification,
-        year_of_study: row.year_of_study,
-        experience: row.experience,
-        is_msg: row.msg,
-        is_call: row.call,
-        is_mail: row.mail,
-        is_fee: row.is_fee,
+        source: row.source || '',
+        degree: row.degree || '',
+        specification: row.specification || '',
+        year_of_study: row.year_of_study || '',
+        experience: row.experience || '',
+        is_msg: row.is_msg ,
+        is_call: row.is_call,
+        is_mail: row.is_mail ,
+        is_fee: row.is_fee ,
         languages: languagesArray,
-        lead_status: row.lead_status,
-        additional_details: row.additional_details,
-        excel_upload: '1'
+        candidate_status: row.candidate_status || '',
+        additional_details: row.additional_details || '',
+        excel_upload: '1',
       };
-// console.log(contactData);return;
+
+
       if (!existingContact) {
-        contectsToInsert.push(contactData);
+        // Add to insertion list and for notification
+        newContactsToInsert.push(contactData);
+        insertedContactsForMsg.push({ phone_number: mobile, fullname: row.fullname });
       } else {
-        await Contacts.updateOne(
-          { phone_number: mobile },
-          { $set: contactData }
-        );
+        console.log(contactData);
+        // Update existing contact
+        await Contacts.updateOne({ phone_number: mobile }, { $set: contactData });
       }
     }
 
-    // Insert new contacts
-    if (contectsToInsert.length > 0) {
-      await Contacts.insertMany(contectsToInsert);
+    // Insert new contacts in bulk
+    if (newContactsToInsert.length > 0) {
+      await Contacts.insertMany(newContactsToInsert);
     }
 
-    // Fetch all contacts and send messages
-    const contacts = await Contacts.find();
-    if (!contacts.length) {
-      return res.status(404).json({ message: "No contacts found" });
+    // Send messages only to newly inserted contacts
+    
+// console.log(insertedContactsForMsg);return;
+    for (const contact of insertedContactsForMsg) {
+      await bulk_users_meg(contact.phone_number, contact.fullname);
     }
 
-    // for (const contact of contacts) {
-    //   await bulk_users_meg(contact.phone_number, contact.fullname);
-    // }
-
-    return res.status(200).json({ message: "Excel processed successfully. Messages sent." });
+    return res.status(200).json({
+      status_code: 200,
+      message: "Excel data processed successfully",
+      inserted_count: newContactsToInsert.length,
+      updated_count: sheetData.length - newContactsToInsert.length,
+    });
 
   } catch (error) {
     console.error("Error processing Excel file:", error);
     res.status(500).json({
       status_code: 500,
-      message: "Error inserting/updating Excel data",
+      message: "Error inserting or updating Excel data",
       error: error.message,
     });
   }
