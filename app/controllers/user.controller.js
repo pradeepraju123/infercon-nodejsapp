@@ -96,9 +96,9 @@ exports.excelupload = async (req, res) => {
     // Send messages only to newly inserted contacts
     
 // console.log(insertedContactsForMsg);return;
-    for (const contact of insertedContactsForMsg) {
-      await bulk_users_meg(contact.phone_number, contact.fullname);
-    }
+    // for (const contact of insertedContactsForMsg) {
+    //   await bulk_users_meg(contact.phone_number, contact.fullname);
+    // }
 
     return res.status(200).json({
       status_code: 200,
@@ -150,29 +150,9 @@ exports.bulkExcelMes = async (req, res) => {
         $lte: end,  
       }
     };
-    if (state || country || city) {
-      filter.$or = [];
-
-      if (state) {
-        const statesArray = Array.isArray(state) ? state : [state];
-        filter.$or.push({ state: { $in: statesArray } });
-      }
-      if (country) {
-        const countriesArray = Array.isArray(country) ? country : [country];
-        filter.$or.push({ country: { $in: countriesArray } });
-      }
-
-      if (city) {
-        const citiesArray = Array.isArray(city) ? city : [city];
-        filter.$or.push({ city: { $in: citiesArray } });
-      }
-
-      if (filter.$or.length === 0) {
-        delete filter.$or;
-      }
-    }
+   
     const contacts = await Contacts.find(filter);
-    console.log(contacts);return;
+    //console.log(contacts);return;
    
     for (const contact of contacts) {
       // console.log(contact.phone_number);
@@ -189,56 +169,24 @@ exports.bulkExcelMes = async (req, res) => {
 
 exports.allcontacts = async (req, res) => {
   try {
-      // Define date ranges for 2024 & 2025
-      const start2024 = new Date('2024-01-01T00:00:00.000Z');
-      const end2024 = new Date('2024-12-31T23:59:59.999Z');
-      const start2025 = new Date('2025-01-01T00:00:00.000Z');
-      const end2025 = new Date('2025-12-31T23:59:59.999Z');
+    const allContacts = await Contacts.find({}).sort({ createdAt: -1 }); // Optional: latest first
 
-      // Fetch contacts for 2024 and 2025
-      const contacts2024 = await Contacts.find({ createdAt: { $gte: start2024, $lte: end2024 } });
-      const contacts2025 = await Contacts.find({ createdAt: { $gte: start2025, $lte: end2025 } });
-
-      // Function to group contacts by month
-      function groupByMonth(contacts) {
-          return contacts.reduce((acc, contact) => {
-              const month = new Date(contact.createdAt).toLocaleString('default', { month: 'short' }).toLowerCase();
-              if (!acc[month]) {
-                  acc[month] = [];
-              }
-              acc[month].push(contact);
-              return acc;
-          }, {});
-      }
-
-      // Group contacts by month
-      const groupedContacts2024 = groupByMonth(contacts2024);
-      const groupedContacts2025 = groupByMonth(contacts2025);
-
-      return res.status(200).json({
-          status_code: 200,
-          message: "Contacts retrieved successfully",
-          data: {
-            contacts_2024: {
-                  total: contacts2024.length,
-                  contacts: groupedContacts2024
-              },
-              contacts_2025: {
-                  total: contacts2025.length,
-                  contacts: groupedContacts2025
-              }
-          }
-      });
-
+    return res.status(200).json({
+      status_code: 200,
+      message: "All contacts retrieved successfully",
+      total: allContacts.length,
+      contacts: allContacts,
+    });
   } catch (error) {
-      console.error("Error while retrieving data:", error);
-      res.status(500).json({
-          status_code: 500,
-          message: "Error while retrieving data",
-          error: error.message,
-      });
+    console.error("Error while retrieving contacts:", error);
+    res.status(500).json({
+      status_code: 500,
+      message: "Error while retrieving contacts",
+      error: error.message,
+    });
   }
 };
+
 
 
 exports.create = async (req, res) => {
