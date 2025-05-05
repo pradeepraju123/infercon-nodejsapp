@@ -24,6 +24,8 @@ exports.excelupload = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ status_code: 400, message: "No file uploaded." });
     }
+
+    // Read the workbook
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
@@ -31,26 +33,33 @@ exports.excelupload = async (req, res) => {
     const newContactsToInsert = [];
     const insertedContactsForMsg = [];
 
+    // Loop through each row in the sheet
     for (const row of sheetData) {
-      if (!row.fullname && !row.email && !row.course && !row.phone_number && !row.lead_status) {
-        return res.status(400).json({ status_code: 400, message: "Content cannot be empty!" });
-      }     
+      // Check if mandatory fields are missing
+      // if (!row.email || !row.course || !row.phone_number) {
+      //   return res.status(400).json({ status_code: 400, message: "Content cannot be empty!" });
+      // }
 
+      // Process location and languages
       const locationArray = typeof row.location === "string"
         ? row.location.split(",").map(loc => loc.trim())
         : Array.isArray(row.location)
-          ? row.location.map(loc => loc.trim())
-          : [];
+        ? row.location.map(loc => loc.trim())
+        : [];
 
       const languagesArray = typeof row.languages === "string"
         ? row.languages.split(",").map(lang => lang.trim())
         : Array.isArray(row.languages)
-          ? row.languages.map(lang => lang.trim())
-          : [];
+        ? row.languages.map(lang => lang.trim())
+        : [];
 
+      // Prepend country code to phone number
       const mobile = '91' + row.phone_number;
+
+      // Check if the contact already exists
       const existingContact = await Contacts.findOne({ phone_number: mobile });
 
+      // Create the contact data
       const contactData = {
         date_of_enquiry: typeof row.date_of_enquiry === "number"
           ? excelDateToJSDate(row.date_of_enquiry)
@@ -65,36 +74,33 @@ exports.excelupload = async (req, res) => {
         specification: row.specification || '',
         year_of_study: row.year_of_study || '',
         experience: row.experience || '',
-        is_msg: row.is_msg ,
+        is_msg: row.is_msg,
         is_call: row.is_call,
-        is_mail: row.is_mail ,
-        is_fee: row.is_fee ,
+        is_mail: row.is_mail,
+        is_fee: row.is_fee,
         languages: languagesArray,
-        candidate_status: row.candidate_status || '',
+        lead_status: row.candidate_status || '',
         additional_details: row.additional_details || '',
         excel_upload: '1',
       };
-      // console.log(contactData);return;
-
+      //console.log(contactData);return;
 
       if (!existingContact) {
-        // Add to insertion list and for notification
+        // If contact doesn't exist, add it to the insertion list and for notification
         newContactsToInsert.push(contactData);
         insertedContactsForMsg.push({ phone_number: mobile, fullname: row.fullname });
       } else {
-        console.log(contactData);
-        // Update existing contact
+        // If contact exists, update the contact
         await Contacts.updateOne({ phone_number: mobile }, { $set: contactData });
       }
     }
 
-    // Insert new contacts in bulk
+    // Insert new contacts in bulk (if any)
     if (newContactsToInsert.length > 0) {
       await Contacts.insertMany(newContactsToInsert);
     }
 
-  
-
+    // Send the response with the results
     return res.status(200).json({
       status_code: 200,
       message: "Excel data processed successfully",
