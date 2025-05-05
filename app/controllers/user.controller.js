@@ -1,6 +1,11 @@
 const xlsx = require('xlsx');
 const db = require("../models");
 const config = require("../config/config.js");
+// const coursePath = require('../data/courseInfo.json');
+const path = require('path');
+const fs = require('fs');
+
+
 const User = db.users
 const Contacts = db.contact
 const { hashPassword, generateToken, verifyPassword } = require('../utils/auth.utils.js');
@@ -29,13 +34,7 @@ exports.excelupload = async (req, res) => {
     for (const row of sheetData) {
       if (!row.fullname && !row.email && !row.course && !row.phone_number && !row.lead_status) {
         return res.status(400).json({ status_code: 400, message: "Content cannot be empty!" });
-      }
-
-      const coursesArray = typeof row.courses === "string"
-        ? row.courses.split(",").map(course => course.trim())
-        : Array.isArray(row.courses)
-          ? row.courses.map(course => course.trim())
-          : [];
+      }     
 
       const locationArray = typeof row.location === "string"
         ? row.location.split(",").map(loc => loc.trim())
@@ -60,7 +59,7 @@ exports.excelupload = async (req, res) => {
         location: locationArray,
         phone_number: mobile,
         email: row.email,
-        courses: coursesArray,
+        courses: row.courses,
         source: row.source || '',
         degree: row.degree || '',
         specification: row.specification || '',
@@ -75,6 +74,7 @@ exports.excelupload = async (req, res) => {
         additional_details: row.additional_details || '',
         excel_upload: '1',
       };
+      // console.log(contactData);return;
 
 
       if (!existingContact) {
@@ -93,12 +93,7 @@ exports.excelupload = async (req, res) => {
       await Contacts.insertMany(newContactsToInsert);
     }
 
-    // Send messages only to newly inserted contacts
-    
-// console.log(insertedContactsForMsg);return;
-    // for (const contact of insertedContactsForMsg) {
-    //   await bulk_users_meg(contact.phone_number, contact.fullname);
-    // }
+  
 
     return res.status(200).json({
       status_code: 200,
@@ -137,34 +132,49 @@ exports.bulkExcelMes1 = async (req, res) => {
 
 exports.bulkExcelMes = async (req, res) => {
   try {
-    const { state, country, city, startDate, endDate } = req.body;
-    if (!startDate || !endDate) {
-      return res.status(400).json({ message: "startDate and endDate are required" });
+    const { country, startDate, endDate, course_id, experience, course } = req.body;
+
+    if (!startDate || !endDate || !course_id) {
+      return res.status(400).json({ message: "startDate, endDate, and course_id are required" });
     }
+
     const start = new Date(startDate);
     const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    end.setHours(23, 59, 59, 999); // Include full end day
+
     let filter = {
-      createdAt: {
-        $gte: start, 
-        $lte: end,  
-      }
+      createdAt: { $gte: start, $lte: end }
     };
-   
-    const contacts = await Contacts.find(filter);
-    //console.log(contacts);return;
-   
-    for (const contact of contacts) {
-      // console.log(contact.phone_number);
-      // console.log(contact.fullname);return;
-      bulk_users_meg(contact.phone_number,contact.fullname);
+
+    if (country) filter.country = country;
+    if (experience) filter.experience = experience;
+    if (course) filter.course = course;
+
+    const coursePath = path.join(__dirname, '../data/courseInfo.json');
+    const courseData = fs.readFileSync(coursePath, 'utf-8');
+    const courses = JSON.parse(courseData);
+
+    const selectedCourse = courses.find(course => course.id === course_id);
+    if (!selectedCourse) {
+      return res.status(404).json({ message: "Course not found" });
     }
-    return res.status(200).json({ data: contacts });
+
+    // const sentMessages = [];
+
+    const contacts = await Contacts.find(filter);
+
+    for (const contact of contacts) {
+      const courseMessage = `Dear ${contact.fullname},\n\n${selectedCourse.greeting}\n\n${selectedCourse.introduction}\n\nCourse Contents:\n${selectedCourse.course_content.map((item, i) => `${i + 1}. ${item}`).join('\n')}\n\n${selectedCourse.closing}\n\n${selectedCourse.contact.message}\n${selectedCourse.contact.name}\n${selectedCourse.contact.phone}\n${selectedCourse.contact.note}`;
+       await bulk_users_meg(contact.phone_number,courseMessage);
+    }
+    // console.log(sentMessages);
+
+    return res.status(200).json({ message: 'Messages sent successfully', count: contacts.length });
+
   } catch (error) {
-    console.error("Error fetching contacts:", error);
+    console.error("Error in bulkExcelMes:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
-
 };
 
 exports.allcontacts = async (req, res) => {

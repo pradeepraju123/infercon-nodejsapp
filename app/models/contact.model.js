@@ -9,7 +9,7 @@ module.exports = mongoose => {
           phone_number:String,
           email: String,
           phone: String,
-          courses: [],
+          courses:String,
           message: String,
           lead_status: String,
           assignee: String,

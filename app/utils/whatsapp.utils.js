@@ -2,11 +2,11 @@ const axios = require('axios');
 const config = require("../config/config.js");
 
 
-function bulk_users_meg(mobile,name)
+function bulk_users_meg(mobile,message)
 {
     try {
 
-        const messageTemplate = `*Name :* ${name}\nPhone: ${mobile}`;
+        const messageTemplate = message;
 
         const payload = {
             chatId : mobile+"@c.us",
