@@ -1,5 +1,8 @@
 const axios = require('axios');
 const config = require("../config/config.js");
+const FormData = require('form-data');
+const fs = require('fs');
+const path = require('path');
 
 
 // function bulk_users_meg(mobile, message) {
@@ -88,53 +91,41 @@ const config = require("../config/config.js");
 //     }
 //}
 
-async function bulk_users_meg(mobile, message) {
+function bulk_users_meg(mobile, message) {
     try {
-        
-            const uploadPayload = {
-                file: 'https://l1.inferconautomation.com/uploads/1718431128429.jpg',
-            };
-    
-            const uploadHeaders = {
-                'Content-Type': 'application/json',
-            };
-            const  uploadUrl = "https://media.green-api.com/waInstance1101781607/sendFileByUpload/7d9fc0a0b68944f0b21443e6c9234ea5cb7f67019f9944e6bb"
+                      
+        const url = 'https://media.green-api.com/waInstance1101790684/sendFileByUpload/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6';
+        const filePath = '/Users/trstscore/Nanthini/projects/angular-py/infercon-nodejsapp/whatsapp.png'; 
+        const fileName = path.basename(filePath);
 
-            // const uploadUrl = `https://media.green-api.com/waInstanceYOUR_INSTANCE_ID/sendFileByUpload/YOUR_API_TOKEN`;
-    
-            console.log('Attempting to upload file...');
-    
-            const uploadResponse = await axios.post(uploadUrl, uploadPayload, { headers: uploadHeaders });
-    
-            if (uploadResponse.data && uploadResponse.data.urlFile) {
-                console.log('File uploaded successfully:', uploadResponse.data.urlFile);
-                
-                // Step 2: Send the message with the uploaded file URL
-                const payload = {
-                    chatId: `${mobile}@c.us`,
-                    urlFile: uploadResponse.data.urlFile,  // File URL returned from upload
-                    fileName: '1718431128429.jpg',
-                    caption: message,
-                };
-                       const messageUrl = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6";
-
-    
-                // const messageUrl = `https://api.green-api.com/waInstanceYOUR_INSTANCE_ID/sendMessage/YOUR_API_TOKEN`;
-    
-                console.log('Sending message with file URL:', payload);
-    
-                const messageResponse = await axios.post(messageUrl, payload, { headers: uploadHeaders });
-    
-                console.log('Message sent successfully:', messageResponse.data);
-                return messageResponse.data;
-            } else {
-                console.error('Failed to upload the file:', uploadResponse.data);
-                return false;
-            }
-        } catch (error) {
-            console.error('Error during file upload or message send:', error.response?.data || error.message);
-            return false;
+        if (!fs.existsSync(filePath)) {
+            return;
         }
+        const chatId = `${mobile}@c.us`;
+        // Build form data
+        const form = new FormData();
+        form.append('chatId', chatId);
+        form.append('caption', message);
+        form.append('fileName', fileName);
+        form.append('file', fs.createReadStream(filePath));
+
+    
+        return axios.post(url, form, {
+            headers: form.getHeaders()
+        })
+        .then(response => {
+            // console.log(' Message sent:', response.data);
+            return response.data;
+        })
+        .catch(error => {
+            console.error('Error sending message:', error.response?.data || error.message);
+            throw error;
+        });
+
+    } catch (err) {
+        console.error(' Exception:', err);
+        return false;
+    }
 }
 
 
