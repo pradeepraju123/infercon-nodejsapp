@@ -2,40 +2,94 @@ const axios = require('axios');
 const config = require("../config/config.js");
 
 
-function bulk_users_meg(mobile,message)
-{
+// function bulk_users_meg(mobile, message) {
+//     try {
+//         const payload = {
+//             chatId: `${mobile}@c.us`,
+//              urlFile: 'https://l1.inferconautomation.com/uploads/1718431128429.jpg',
+//              fileName: '1718431128429.jpg',
+//              caption: 'Here is your file'
+
+//            // message: message // ✅ Use caption here for the file
+//         };
+
+//         const headers = {
+//             'Content-Type': 'application/json'
+//         };
+
+//         console.log('Payload:', payload);
+
+//         // ✅ Ensure you're using sendFileByUrl, not sendMessage
+//               // const url = "https://media.green-api.com/waInstance1101781607/sendFileByUrl/7d9fc0a0b68944f0b21443e6c9234ea5cb7f67019f9944e6bb";
+
+//             //https://l1.inferconautomation.com/uploads/1718431128429.jpg
+//               url = "https://media.green-api.com/waInstance1101781607/sendFileByUpload/7d9fc0a0b68944f0b21443e6c9234ea5cb7f67019f9944e6bb"
+
+
+//               response = requests.post(url, json=payload, headers=headers)
+// print(response.text)
+
+//         // return axios.post(
+//         //     url,
+//         //     payload,
+//         //     { headers }
+//         // )
+//         // .then(response => {
+//         //     console.log('Response:', response.data);
+//         //     return response.data;
+//         // })
+//         // .catch(error => {
+//         //     console.error('Axios Error:', error.response?.data || error.message);
+//         //     throw error;
+//         // });
+
+//     } catch (err) {
+//         console.error('Exception:', err);
+//         return false;
+//     }
+// }
+
+function bulk_users_meg(mobile, message) {
     try {
-
-        const messageTemplate = message;
-
         const payload = {
-            chatId : mobile+"@c.us",
-
-           // chatId: `${config.chatId}`,
-            message: messageTemplate
+            chatId: `${mobile}@c.us`,
+            urlFile: 'https://l1.inferconautomation.com/uploads/1718431128429.jpg',
+            fileName: '1718431128429.jpg',
+            caption: message
         };
 
         const headers = {
             'Content-Type': 'application/json'
         };
 
-        console.log(payload)
-        return axios.post(`${config.whatsappApiUrl}`, payload, { headers })  
-        .then(response => {
-          console.log(response.data);
-          return response.data;  
-        })
-        .catch(error => {
-          console.error(error);
-          throw error;  
-        });
-      
+        const idInstance = 'YOUR_INSTANCE_ID';
+        const apiTokenInstance = 'YOUR_API_TOKEN';
+
+        url = "https://media.green-api.com/waInstance1101781607/sendFileByUpload/7d9fc0a0b68944f0b21443e6c9234ea5cb7f67019f9944e6bb"
+
+
+       // const url = `https://api.green-api.com/waInstance${idInstance}/sendFileByUrl/${apiTokenInstance}`;
+
+        console.log("Payload:", payload);
+
+        return axios.post(url, payload, { headers })
+            .then(response => {
+                console.log('Response:', response.data);
+                return response.data;
+            })
+            .catch(error => {
+                console.error('Axios Error:', error.response?.data || error.message);
+                throw error;
+            });
+
     } catch (err) {
-        console.error(err);
+        console.error('Exception:', err);
         return false;
     }
-
 }
+
+
+  
 
 // function bulk_users_meg(mobile,name)
 // {

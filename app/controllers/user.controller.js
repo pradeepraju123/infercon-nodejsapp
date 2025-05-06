@@ -168,6 +168,7 @@ exports.bulkExcelMes = async (req, res) => {
     // const sentMessages = [];
 
     const contacts = await Contacts.find(filter);
+    //console.log(contacts);return
 
     for (const contact of contacts) {
       const courseMessage = `Dear ${contact.fullname},\n\n${selectedCourse.greeting}\n\n${selectedCourse.introduction}\n\nCourse Contents:\n${selectedCourse.course_content.map((item, i) => `${i + 1}. ${item}`).join('\n')}\n\n${selectedCourse.closing}\n\n${selectedCourse.contact.message}\n${selectedCourse.contact.name}\n${selectedCourse.contact.phone}\n${selectedCourse.contact.note}`;
