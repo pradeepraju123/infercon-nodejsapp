@@ -1,105 +1,123 @@
 const xlsx = require('xlsx');
 const db = require("../models");
 const config = require("../config/config.js");
+// const coursePath = require('../data/courseInfo.json');
+const path = require('path');
+const fs = require('fs');
+
+
 const User = db.users
 const Contacts = db.contact
 const { hashPassword, generateToken, verifyPassword } = require('../utils/auth.utils.js');
 const {bulk_users_meg } = require('../utils/whatsapp.utils.js');
 
 
-
+const excelDateToJSDate = (serial) => {
+  const utc_days = Math.floor(serial - 25569);
+  const utc_value = utc_days * 86400; // seconds since epoch
+  const date_info = new Date(utc_value * 1000);
+  return date_info.toISOString().split("T")[0];
+};
 
 exports.excelupload = async (req, res) => {
   try {
-    // Check if file exists
     if (!req.file) {
       return res.status(400).json({ status_code: 400, message: "No file uploaded." });
     }
+
+    // Read the workbook
     const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
     const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
-    // return res.status(400).json({ status_code: 400, data: sheetData});
-    // return
 
-    const contectsToInsert = [];
+    const newContactsToInsert = [];
+    const insertedContactsForMsg = [];
+
+    // Loop through each row in the sheet
     for (const row of sheetData) {
-      if (!row.fullname && !row.email && !row.course && !row.mobile && !row.lead_status && !row.course) {
-        return res.status(400).json({ status_code: 400, message: "Content can not be empty!" });
-      }
-      const existingContact = await Contacts.findOne({ phone_number: row.mobile });
-      let coursesArray = [];
-      let locationArray = [];
-      let languagesArray = [];
+      // Check if mandatory fields are missing
+      // if (!row.email || !row.course || !row.phone_number) {
+      //   return res.status(400).json({ status_code: 400, message: "Content cannot be empty!" });
+      // }
 
-      if (typeof row.course === "string") { 
-        coursesArray = row.course.split(",").map(course => course.trim());
-      } else if (Array.isArray(row.course)) {
-        coursesArray = row.course.map(course => course.trim());
-      }
-      if (typeof row.location === "string") { 
-        locationArray = row.location.split(",").map(location => location.trim());
-      } else if (Array.isArray(row.location)) {
-        locationArray = row.location.map(location => location.trim());
-      }
-      if (typeof row.languages === "string") { 
-        languagesArray = row.languages.split(",").map(languages => languages.trim());
-      } else if (Array.isArray(row.languages)) {
-        languagesArray = row.languages.map(languages => languages.trim());
-      }
-    
+      // Process location and languages
+      const locationArray = typeof row.location === "string"
+        ? row.location.split(",").map(loc => loc.trim())
+        : Array.isArray(row.location)
+        ? row.location.map(loc => loc.trim())
+        : [];
+
+      const languagesArray = typeof row.languages === "string"
+        ? row.languages.split(",").map(lang => lang.trim())
+        : Array.isArray(row.languages)
+        ? row.languages.map(lang => lang.trim())
+        : [];
+
+      // Prepend country code to phone number
+      const mobile = '91' + row.phone_number;
+
+      // Check if the contact already exists
+      const existingContact = await Contacts.findOne({ phone_number: mobile });
+
+      // Create the contact data
+      const contactData = {
+        date_of_enquiry: typeof row.date_of_enquiry === "number"
+          ? excelDateToJSDate(row.date_of_enquiry)
+          : row.date_of_enquiry || null,
+        fullname: row.fullname,
+        location: locationArray,
+        phone_number: mobile,
+        email: row.email,
+        courses: row.courses,
+        source: row.source || '',
+        degree: row.degree || '',
+        specification: row.specification || '',
+        year_of_study: row.year_of_study || '',
+        experience: row.experience || '',
+        is_msg: row.is_msg,
+        is_call: row.is_call,
+        is_mail: row.is_mail,
+        is_fee: row.is_fee,
+        languages: languagesArray,
+        lead_status: row.candidate_status || '',
+        additional_details: row.additional_details || '',
+        excel_upload: '1',
+      };
+      //console.log(contactData);return;
+
       if (!existingContact) {
-        let mobile = '91' + row.mobile;
-        contectsToInsert.push({
-          date_of_enquiry:row.date_of_enquiry,
-          fullname: row.fullname,
-          location:row.locationArray,
-          phone_number: mobile,
-          email: row.email,
-          courses: coursesArray,
-          source:row.source,
-          degree:row.degree,
-          specification:row.specification,
-          year_of_study:row.year_of_study,
-          experience:row.experience,
-          is_msg:row.msg,
-          is_call:row.call,
-          is_mail:row.mail,
-          is_fee:is_fee,
-          languages:languagesArray,
-          candidate_status:candidate_status,
-          additional_details:row.additional_details,
-          excel_upload:'1'
-
-        });
-        
+        // If contact doesn't exist, add it to the insertion list and for notification
+        newContactsToInsert.push(contactData);
+        insertedContactsForMsg.push({ phone_number: mobile, fullname: row.fullname });
+      } else {
+        // If contact exists, update the contact
+        await Contacts.updateOne({ phone_number: mobile }, { $set: contactData });
       }
     }
-    console.log(contectsToInsert);
-    if (contectsToInsert.length > 0) {
-      await Contacts.insertMany(contectsToInsert);
+
+    // Insert new contacts in bulk (if any)
+    if (newContactsToInsert.length > 0) {
+      await Contacts.insertMany(newContactsToInsert);
     }
-    const contacts = await Contacts.find();
-    if (!contacts.length) {
-      return res.status(404).json({ message: "No contacts found"});
-    }
-    for (const contact of contacts) {
-      await bulk_users_meg(contact.phone_number, contact.fullname);
-    }
-    return res.status(200).json({ message: "Messages sent successfully", });
-    // return res.status(201).json({
-    //   status_code: 201,
-    //   message: "Excel data inserted successfully",
-    //   inserted_count: contectsToInsert.length,
-    // });
+
+    // Send the response with the results
+    return res.status(200).json({
+      status_code: 200,
+      message: "Excel data processed successfully",
+      inserted_count: newContactsToInsert.length,
+      updated_count: sheetData.length - newContactsToInsert.length,
+    });
+
   } catch (error) {
     console.error("Error processing Excel file:", error);
     res.status(500).json({
       status_code: 500,
-      message: "Error inserting Excel data",
+      message: "Error inserting or updating Excel data",
       error: error.message,
     });
   }
 };
+
 
 
 exports.bulkExcelMes1 = async (req, res) => {
@@ -120,108 +138,72 @@ exports.bulkExcelMes1 = async (req, res) => {
 
 exports.bulkExcelMes = async (req, res) => {
   try {
-    const { state, country, city, startDate, endDate } = req.body;
-    if (!startDate || !endDate) {
-      return res.status(400).json({ message: "startDate and endDate are required" });
+    const { country, startDate, endDate, course_id, experience, course } = req.body;
+
+    if (!startDate || !endDate || !course_id) {
+      return res.status(400).json({ message: "startDate, endDate, and course_id are required" });
     }
+
     const start = new Date(startDate);
     const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
+    end.setHours(23, 59, 59, 999); // Include full end day
+
     let filter = {
-      createdAt: {
-        $gte: start, 
-        $lte: end,  
-      }
+      createdAt: { $gte: start, $lte: end }
     };
-    if (state || country || city) {
-      filter.$or = [];
 
-      if (state) {
-        const statesArray = Array.isArray(state) ? state : [state];
-        filter.$or.push({ state: { $in: statesArray } });
-      }
-      if (country) {
-        const countriesArray = Array.isArray(country) ? country : [country];
-        filter.$or.push({ country: { $in: countriesArray } });
-      }
+    if (country) filter.country = country;
+    if (experience) filter.experience = experience;
+    if (course) filter.course = course;
 
-      if (city) {
-        const citiesArray = Array.isArray(city) ? city : [city];
-        filter.$or.push({ city: { $in: citiesArray } });
-      }
+    const coursePath = path.join(__dirname, '../data/courseInfo.json');
+    const courseData = fs.readFileSync(coursePath, 'utf-8');
+    const courses = JSON.parse(courseData);
 
-      if (filter.$or.length === 0) {
-        delete filter.$or;
-      }
+    const selectedCourse = courses.find(course => course.id === course_id);
+    if (!selectedCourse) {
+      return res.status(404).json({ message: "Course not found" });
     }
+
+    // const sentMessages = [];
+
     const contacts = await Contacts.find(filter);
-    console.log(contacts);return;
-   
+    //console.log(contacts);return
+
     for (const contact of contacts) {
-      // console.log(contact.phone_number);
-      // console.log(contact.fullname);return;
-      bulk_users_meg(contact.phone_number,contact.fullname);
+      const courseMessage = `Dear ${contact.fullname},\n\n${selectedCourse.greeting}\n\n${selectedCourse.introduction}\n\nCourse Contents:\n${selectedCourse.course_content.map((item, i) => `${i + 1}. ${item}`).join('\n')}\n\n${selectedCourse.closing}\n\n${selectedCourse.contact.message}\n${selectedCourse.contact.name}\n${selectedCourse.contact.phone}\n${selectedCourse.contact.note}`;
+       await bulk_users_meg(contact.phone_number,courseMessage);
     }
-    return res.status(200).json({ data: contacts });
+    // console.log(sentMessages);
+
+    return res.status(200).json({ message: 'Messages sent successfully', count: contacts.length });
+
   } catch (error) {
-    console.error("Error fetching contacts:", error);
+    console.error("Error in bulkExcelMes:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
-
 };
 
 exports.allcontacts = async (req, res) => {
   try {
-      // Define date ranges for 2024 & 2025
-      const start2024 = new Date('2024-01-01T00:00:00.000Z');
-      const end2024 = new Date('2024-12-31T23:59:59.999Z');
-      const start2025 = new Date('2025-01-01T00:00:00.000Z');
-      const end2025 = new Date('2025-12-31T23:59:59.999Z');
+    const allContacts = await Contacts.find({}).sort({ createdAt: -1 }); // Optional: latest first
 
-      // Fetch contacts for 2024 and 2025
-      const contacts2024 = await Contacts.find({ createdAt: { $gte: start2024, $lte: end2024 } });
-      const contacts2025 = await Contacts.find({ createdAt: { $gte: start2025, $lte: end2025 } });
-
-      // Function to group contacts by month
-      function groupByMonth(contacts) {
-          return contacts.reduce((acc, contact) => {
-              const month = new Date(contact.createdAt).toLocaleString('default', { month: 'short' }).toLowerCase();
-              if (!acc[month]) {
-                  acc[month] = [];
-              }
-              acc[month].push(contact);
-              return acc;
-          }, {});
-      }
-
-      // Group contacts by month
-      const groupedContacts2024 = groupByMonth(contacts2024);
-      const groupedContacts2025 = groupByMonth(contacts2025);
-
-      return res.status(200).json({
-          status_code: 200,
-          message: "Contacts retrieved successfully",
-          data: {
-            contacts_2024: {
-                  total: contacts2024.length,
-                  contacts: groupedContacts2024
-              },
-              contacts_2025: {
-                  total: contacts2025.length,
-                  contacts: groupedContacts2025
-              }
-          }
-      });
-
+    return res.status(200).json({
+      status_code: 200,
+      message: "All contacts retrieved successfully",
+      total: allContacts.length,
+      contacts: allContacts,
+    });
   } catch (error) {
-      console.error("Error while retrieving data:", error);
-      res.status(500).json({
-          status_code: 500,
-          message: "Error while retrieving data",
-          error: error.message,
-      });
+    console.error("Error while retrieving contacts:", error);
+    res.status(500).json({
+      status_code: 500,
+      message: "Error while retrieving contacts",
+      error: error.message,
+    });
   }
 };
+
 
 
 exports.create = async (req, res) => {

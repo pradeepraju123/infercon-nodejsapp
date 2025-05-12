@@ -1,0 +1,22 @@
+[
+    {
+      "id": "course001",
+      "recipient": "Nanthini",
+      "greeting": "Greetings from \"INFERCON AUTOMATION PRIVATE LTD CHENNAI\".",
+      "introduction": "We are glad to introduce our SPECIAL CRASH COURSE in PLC Programming...",
+      "course_content": [
+        "Basics of Mechanics, Electronics, Electricals",
+        "Basics of Automation and PLC",
+        "Hands-on training in DELTA PLC",
+        "Realtime Applicational Logics"
+      ],
+      "closing": "HAPPY LEARNING",
+      "contact": {
+        "message": "For further queries, please feel free to contact us",
+        "name": "SULOCHANA",
+        "phone": "+9150177758",
+        "note": "We'll be glad to assist you."
+      }
+    }
+  ]
+  
