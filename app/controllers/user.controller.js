@@ -4,6 +4,10 @@ const config = require("../config/config.js");
 // const coursePath = require('../data/courseInfo.json');
 const path = require('path');
 const fs = require('fs');
+const MessageTemplate = db.message_template;
+
+
+
 
 
 const User = db.users
@@ -136,6 +140,55 @@ exports.bulkExcelMes1 = async (req, res) => {
   }
 }
 
+// exports.bulkExcelMes = async (req, res) => {
+//   try {
+//     const { country, startDate, endDate, course_id, experience, course } = req.body;
+
+//     if (!startDate || !endDate || !course_id) {
+//       return res.status(400).json({ message: "startDate, endDate, and course_id are required" });
+//     }
+
+//     const start = new Date(startDate);
+//     const end = new Date(endDate);
+//     end.setHours(23, 59, 59, 999); // Include full end day
+
+//     let filter = {
+//       createdAt: { $gte: start, $lte: end }
+//     };
+
+//     if (country) filter.country = country;
+//     if (experience) filter.experience = experience;
+//     if (course) filter.course = course;
+
+//     const coursePath = path.join(__dirname, '../data/courseInfo.json');
+//     const courseData = fs.readFileSync(coursePath, 'utf-8');
+//     const courses = JSON.parse(courseData);
+
+//     const selectedCourse = courses.find(course => course.id === course_id);
+//     if (!selectedCourse) {
+//       return res.status(404).json({ message: "Course not found" });
+//     }
+
+//     // const sentMessages = [];
+
+//     const contacts = await Contacts.find(filter);
+//     //console.log(contacts);return
+
+//     for (const contact of contacts) {
+//       const courseMessage = `Dear ${contact.fullname},\n\n${selectedCourse.greeting}\n\n${selectedCourse.introduction}\n\nCourse Contents:\n${selectedCourse.course_content.map((item, i) => `${i + 1}. ${item}`).join('\n')}\n\n${selectedCourse.closing}\n\n${selectedCourse.contact.message}\n${selectedCourse.contact.name}\n${selectedCourse.contact.phone}\n${selectedCourse.contact.note}`;
+//        await bulk_users_meg(contact.phone_number,courseMessage);
+//     }
+//     // console.log(sentMessages);
+
+//     return res.status(200).json({ message: 'Messages sent successfully', count: contacts.length });
+
+//   } catch (error) {
+//     console.error("Error in bulkExcelMes:", error);
+//     return res.status(500).json({ message: "Internal server error" });
+//   }
+// };
+
+
 exports.bulkExcelMes = async (req, res) => {
   try {
     const { country, startDate, endDate, course_id, experience, course } = req.body;
@@ -146,35 +199,40 @@ exports.bulkExcelMes = async (req, res) => {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // Include full end day
+    end.setHours(23, 59, 59, 999); // Include entire end day
 
-    let filter = {
+    const filter = {
       createdAt: { $gte: start, $lte: end }
     };
-
     if (country) filter.country = country;
     if (experience) filter.experience = experience;
     if (course) filter.course = course;
 
-    const coursePath = path.join(__dirname, '../data/courseInfo.json');
-    const courseData = fs.readFileSync(coursePath, 'utf-8');
-    const courses = JSON.parse(courseData);
-
-    const selectedCourse = courses.find(course => course.id === course_id);
+    const selectedCourse = await MessageTemplate.findOne({ id: course_id });
     if (!selectedCourse) {
-      return res.status(404).json({ message: "Course not found" });
+      return res.status(404).json({ message: "Course template not found in database" });
     }
 
-    // const sentMessages = [];
+    const filePath = selectedCourse.imagePath; // fetched from DB
+      for (const contact of contacts) {
+        const courseMessage = 
+          `Dear ${contact.fullname},
+          Greetings from \"INFERCON AUTOMATION PRIVATE LTD CHENNAI\"
+      ${selectedCourse.introduction.replace('this is course title', selectedCourse.course_content[0])}
 
-    const contacts = await Contacts.find(filter);
-    //console.log(contacts);return
+      Course Contents:
+      ${selectedCourse.course_content.map((item, i) => `${i + 1}. ${item}`).join('\n')}
 
-    for (const contact of contacts) {
-      const courseMessage = `Dear ${contact.fullname},\n\n${selectedCourse.greeting}\n\n${selectedCourse.introduction}\n\nCourse Contents:\n${selectedCourse.course_content.map((item, i) => `${i + 1}. ${item}`).join('\n')}\n\n${selectedCourse.closing}\n\n${selectedCourse.contact.message}\n${selectedCourse.contact.name}\n${selectedCourse.contact.phone}\n${selectedCourse.contact.note}`;
-       await bulk_users_meg(contact.phone_number,courseMessage);
-    }
-    // console.log(sentMessages);
+      ${selectedCourse.closing}
+
+      ${selectedCourse.contact.message}
+      ${selectedCourse.contact.name}
+      ${selectedCourse.contact.phone}
+      ${selectedCourse.contact.note}`;
+
+        await bulk_users_meg(contact.phone_number, courseMessage, filePath);
+      }
+
 
     return res.status(200).json({ message: 'Messages sent successfully', count: contacts.length });
 
@@ -183,6 +241,7 @@ exports.bulkExcelMes = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 exports.allcontacts = async (req, res) => {
   try {
