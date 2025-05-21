@@ -14,8 +14,8 @@ module.exports = app => {
      router.post("/bulkupload", authenticateToken,upload.single("file"),users.excelupload);
     //router.post("/bulkupload",upload.single("file"),users.excelupload);
 
-    router.post("/bulkwhatsmes",users.bulkExcelMes);
-    router.get("/getall",users.allcontacts);
+    router.post("/bulkwhatsmes",authenticateToken,users.bulkExcelMes);
+    router.get("/getall",authenticateToken,users.allcontacts);
 
 
 
@@ -45,6 +45,11 @@ module.exports = app => {
   
     // Delete all Tutorials
     router.delete("/", users.deleteAll);
+
+
+
+
+    
 
 
 
