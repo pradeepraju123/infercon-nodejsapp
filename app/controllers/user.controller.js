@@ -122,6 +122,32 @@ exports.excelupload = async (req, res) => {
   }
 };
 
+exports.filtercontact = async (req, res) => {
+  const { startDate, endDate, country, course, experience } = req.body;
+
+  let filter = {};
+
+  // Handle date range
+  if (startDate && endDate) {
+    filter.createdAt = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate)
+    };
+  }
+
+  // Optional fields
+  if (country && country !== '') filter.country = country;
+  if (course && course !== '') filter.course = course;
+  if (experience && experience !== '') filter.experience = experience;
+
+  try {
+    const contacts = await Contacts.find(filter);
+    res.status(200).json({ contacts });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to fetch contacts' });
+  }
+};
 
 
 exports.bulkExcelMes1 = async (req, res) => {

@@ -16,7 +16,8 @@ module.exports = app => {
 
     router.post("/bulkwhatsmes",authenticateToken,users.bulkExcelMes);
     router.get("/getall",authenticateToken,users.allcontacts);
-
+    //retrieve 
+    router.post("/filtercontact",authenticateToken,users.filtercontact);
 
 
     // Retrieve all Tutorials
