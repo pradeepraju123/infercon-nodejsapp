@@ -217,56 +217,61 @@ exports.bulkExcelMes1 = async (req, res) => {
 
 exports.bulkExcelMes = async (req, res) => {
   try {
-    const { country, startDate, endDate, course_id, experience, course } = req.body;
+    const { mobileNumbers, course_id } = req.body;
 
-    if (!startDate || !endDate || !course_id) {
-      return res.status(400).json({ message: "startDate, endDate, and course_id are required" });
+    if (!mobileNumbers || !Array.isArray(mobileNumbers) || mobileNumbers.length === 0 || !course_id) {
+      return res.status(400).json({ message: 'Missing mobileNumbers or course_id' });
     }
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // Include entire end day
-
-    const filter = {
-      createdAt: { $gte: start, $lte: end }
-    };
-    if (country) filter.country = country;
-    if (experience) filter.experience = experience;
-    if (course) filter.course = course;
-
-    const selectedCourse = await MessageTemplate.findOne({ id: course_id });
+    const selectedCourse = await MessageTemplate.findOne({ course_id });
     if (!selectedCourse) {
-      return res.status(404).json({ message: "Course template not found in database" });
+      return res.status(404).json({ message: 'Template not found for the given course_id' });
     }
 
-    const filePath = selectedCourse.imagePath; // fetched from DB
-      for (const contact of contacts) {
-        const courseMessage = 
-          `Dear ${contact.fullname},
-          Greetings from \"INFERCON AUTOMATION PRIVATE LTD CHENNAI\"
-      ${selectedCourse.introduction.replace('this is course title', selectedCourse.course_content[0])}
+    // Use fallback/default values to avoid errors
+    const introduction = selectedCourse.introduction || "Welcome to our course: this is course title.";
+    const closing = selectedCourse.closing || "Thank you for your interest!";
+    const courseContent = Array.isArray(selectedCourse.course_content) ? selectedCourse.course_content : [];
+    const contactInfo = selectedCourse.contact || {};
+
+    const filePath = path.join(__dirname, '..', '..', selectedCourse.imageUrl || 'whatsapp.png');
+
+    // Fetch contact details from DB
+    const contacts = await Contacts.find({ phone_number: { $in: mobileNumbers } });
+
+    for (const contact of contacts) {
+      const courseMessage = 
+      `Dear ${contact.fullname},
+      Greetings from "INFERCON AUTOMATION PRIVATE LTD CHENNAI"
+
+      ${introduction.replace('this is course title', courseContent[0] || '')}
 
       Course Contents:
-      ${selectedCourse.course_content.map((item, i) => `${i + 1}. ${item}`).join('\n')}
+      ${courseContent.map((item, i) => `${i + 1}. ${item}`).join('\n')}
 
-      ${selectedCourse.closing}
+      ${closing}
 
-      ${selectedCourse.contact.message}
-      ${selectedCourse.contact.name}
-      ${selectedCourse.contact.phone}
-      ${selectedCourse.contact.note}`;
+      ${contactInfo.message || ''}
+      ${contactInfo.name || ''}
+      ${contactInfo.phone || ''}
+      ${contactInfo.note || ''}`;
 
-        await bulk_users_meg(contact.phone_number, courseMessage, filePath);
-      }
+            console.log('Sending to:', contact.phone_number);
+            console.log('Image Path:', filePath);
+            console.log('Message:\n', courseMessage);
+            
+            await bulk_users_meg(contact.phone_number, courseMessage, filePath);
+          }
 
+          return res.status(200).json({ message: 'Messages sent successfully', count: contacts.length });
 
-    return res.status(200).json({ message: 'Messages sent successfully', count: contacts.length });
-
-  } catch (error) {
-    console.error("Error in bulkExcelMes:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
+        } catch (error) {
+          console.error("Error in bulkExcelMes:", error);
+          return res.status(500).json({ message: "Internal server error" });
+        }
 };
+
+
 
 
 exports.allcontacts = async (req, res) => {

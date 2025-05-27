@@ -35,7 +35,6 @@ exports.create = async (req, res) => {
   }
 };
 
-
 exports.all = async (req, res) => {
   try {
     const templates = await MessageTemplate.find();
@@ -47,7 +46,7 @@ exports.all = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    const template = await MessageTemplate.findOne({ course_id: req.params.id }); // FIXED
+    const template = await MessageTemplate.findOne({ course_id: req.params.id });
     if (!template) {
       return res.status(404).json({ error: 'Template not found' });
     }
@@ -73,10 +72,9 @@ exports.update = async (req, res) => {
   }
 };
 
-
 exports.delete = async (req, res) => {
   try {
-    const template = await MessageTemplate.findOne({ course_id: req.params.id }); // FIXED
+    const template = await MessageTemplate.findOne({ course_id: req.params.id });
     if (!template) {
       return res.status(404).json({ error: 'Template not found' });
     }
@@ -88,7 +86,7 @@ exports.delete = async (req, res) => {
       }
     }
 
-    await MessageTemplate.deleteOne({ course_id: req.params.id }); // FIXED
+    await MessageTemplate.deleteOne({ course_id: req.params.id });
     res.json({ message: 'Template deleted successfully' });
   } catch (err) {
     res.status(400).json({ error: err.message });

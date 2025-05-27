@@ -3,7 +3,7 @@ module.exports = mongoose => {
   const schema = new mongoose.Schema({
     course_id: { type: String, required: true, unique: true },
     course_content: { type: [String], required: true },
-    imageUrl: { type: String }
+    imageUrl: { type: String, default: '' },
   }, { timestamps: true });
 
   return mongoose.model("message_template", schema);
