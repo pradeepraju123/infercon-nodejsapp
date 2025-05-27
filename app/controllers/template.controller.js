@@ -4,16 +4,15 @@ const path = require('path');
 const fs = require('fs');
 exports.create = async (req, res) => {
   try {
-    const { id, course_content } = req.body;
+    const { course_id, course_content } = req.body;
 
-    if (!id || !course_content) {
-      return res.status(400).json({ error: 'id and course_content are required' });
+    if (!course_id || !course_content) {
+      return res.status(400).json({ error: 'course_id and course_content are required' });
     }
 
-    // Check if template with same ID already exists
-    const existing = await MessageTemplate.findOne({ id });
+    const existing = await MessageTemplate.findOne({ course_id });
     if (existing) {
-      return res.status(409).json({ error: `Template with ID "${id}" already exists.` });
+      return res.status(409).json({ error: `Template with ID "${course_id}" already exists.` });
     }
 
     const courseContentArray = Array.isArray(course_content)
@@ -23,7 +22,7 @@ exports.create = async (req, res) => {
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : '';
 
     const template = new MessageTemplate({
-      id,
+      course_id,
       course_content: courseContentArray,
       imageUrl
     });
@@ -36,6 +35,7 @@ exports.create = async (req, res) => {
   }
 };
 
+
 exports.all = async (req, res) => {
   try {
     const templates = await MessageTemplate.find();
@@ -47,7 +47,7 @@ exports.all = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    const template = await MessageTemplate.findOne({ id: req.params.id });
+    const template = await MessageTemplate.findOne({ course_id: req.params.id }); // FIXED
     if (!template) {
       return res.status(404).json({ error: 'Template not found' });
     }
@@ -57,7 +57,6 @@ exports.update = async (req, res) => {
     }
 
     if (req.file) {
-      // Delete old image if exists
       if (template.imageUrl) {
         const oldPath = path.join(__dirname, '..', template.imageUrl);
         if (fs.existsSync(oldPath)) {
@@ -74,9 +73,10 @@ exports.update = async (req, res) => {
   }
 };
 
+
 exports.delete = async (req, res) => {
   try {
-    const template = await MessageTemplate.findOne({ id: req.params.id });
+    const template = await MessageTemplate.findOne({ course_id: req.params.id }); // FIXED
     if (!template) {
       return res.status(404).json({ error: 'Template not found' });
     }
@@ -88,9 +88,10 @@ exports.delete = async (req, res) => {
       }
     }
 
-    await MessageTemplate.deleteOne({ id: req.params.id });
+    await MessageTemplate.deleteOne({ course_id: req.params.id }); // FIXED
     res.json({ message: 'Template deleted successfully' });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 };
+
