@@ -3,99 +3,71 @@ const config = require("../config/config.js");
 const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+const http = require('http');
 
+
+const downloadImage = async (imageUrl, destPath) => {
+    const protocol = imageUrl.startsWith('https') ? https : http;
+  
+    return new Promise((resolve, reject) => {
+      const file = fs.createWriteStream(destPath);
+      protocol.get(imageUrl, response => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`Failed to get '${imageUrl}' (${response.statusCode})`));
+          return;
+        }
+        response.pipe(file);
+        file.on('finish', () => file.close(resolve));
+      }).on('error', err => {
+        fs.unlink(destPath, () => reject(err));
+      });
+    });
+  };
 
 // function bulk_users_meg(mobile, message) {
 //     try {
-//         const payload = {
-//             chatId: `${mobile}@c.us`,
-//              urlFile: 'https://l1.inferconautomation.com/uploads/1718431128429.jpg',
-//              fileName: '1718431128429.jpg',
-//              caption: 'Here is your file'
+                      
+//         const url = 'https://media.green-api.com/waInstance1101790684/sendFileByUpload/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6';
+//         const filePath = '/Users/trstscore/Nanthini/projects/angular-py/infercon-nodejsapp/whatsapp.png'; 
+//         const fileName = path.basename(filePath);
 
-//            // message: message // ✅ Use caption here for the file
-//         };
+//         if (!fs.existsSync(filePath)) {
+//             return;
+//         }
+//         const chatId = `${mobile}@c.us`;
+//         // Build form data
+//         const form = new FormData();
+//         form.append('chatId', chatId);
+//         form.append('caption', message);
+//         form.append('fileName', fileName);
+//         form.append('file', fs.createReadStream(filePath));
 
-//         const headers = {
-//             'Content-Type': 'application/json'
-//         };
-
-//         console.log('Payload:', payload);
-
-//         // ✅ Ensure you're using sendFileByUrl, not sendMessage
-//               // const url = "https://media.green-api.com/waInstance1101781607/sendFileByUrl/7d9fc0a0b68944f0b21443e6c9234ea5cb7f67019f9944e6bb";
-
-//             //https://l1.inferconautomation.com/uploads/1718431128429.jpg
-//               url = "https://media.green-api.com/waInstance1101781607/sendFileByUpload/7d9fc0a0b68944f0b21443e6c9234ea5cb7f67019f9944e6bb"
-
-
-//               response = requests.post(url, json=payload, headers=headers)
-// print(response.text)
-
-//         // return axios.post(
-//         //     url,
-//         //     payload,
-//         //     { headers }
-//         // )
-//         // .then(response => {
-//         //     console.log('Response:', response.data);
-//         //     return response.data;
-//         // })
-//         // .catch(error => {
-//         //     console.error('Axios Error:', error.response?.data || error.message);
-//         //     throw error;
-//         // });
+    
+//         return axios.post(url, form, {
+//             headers: form.getHeaders()
+//         })
+//         .then(response => {
+//             // console.log(' Message sent:', response.data);
+//             return response.data;
+//         })
+//         .catch(error => {
+//             console.error('Error sending message:', error.response?.data || error.message);
+//             throw error;
+//         });
 
 //     } catch (err) {
-//         console.error('Exception:', err);
+//         console.error(' Exception:', err);
 //         return false;
 //     }
 // }
 
-// function bulk_users_meg(mobile, message) {
-//     try {
-//         const payload = {
-//             chatId: `${mobile}@c.us`,
-//             urlFile: 'https://l1.inferconautomation.com/uploads/1718431128429.jpg',
-//             fileName: '1718431128429.jpg',
-//             caption: message
-//         };
 
-//         const headers = {
-//             'Content-Type': 'application/json'
-//         };
-
-//         const idInstance = 'YOUR_INSTANCE_ID';
-//         const apiTokenInstance = 'YOUR_API_TOKEN';
-
-//         url = "https://media.green-api.com/waInstance1101781607/sendFileByUpload/7d9fc0a0b68944f0b21443e6c9234ea5cb7f67019f9944e6bb"
-
-
-//        // const url = `https://api.green-api.com/waInstance${idInstance}/sendFileByUrl/${apiTokenInstance}`;
-
-//         console.log("Payload:", payload);
-
-//         return axios.post(url, payload, { headers })
-//             .then(response => {
-//                 console.log('Response:', response.data);
-//                 return response.data;
-//             })
-//             .catch(error => {
-//                 console.error('Axios Error:', error.response?.data || error.message);
-//                 throw error;
-//             });
-
-//     } catch (err) {
-//         console.error('Exception:', err);
-//         return false;
-//     }
-//}
-
-function bulk_users_meg(mobile, message) {
+function bulk_users_meg(mobile, message,file) {
     try {
                       
-        const url = 'https://media.green-api.com/waInstance1101790684/sendFileByUpload/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6';
-        const filePath = '/whatsapp.png'; 
+       const  url = "https://media.green-api.com/waInstance1101781607/sendFileByUpload/7d9fc0a0b68944f0b21443e6c9234ea5cb7f67019f9944e6bb"
+        const filePath = file; 
         const fileName = path.basename(filePath);
 
         if (!fs.existsSync(filePath)) {
@@ -114,7 +86,7 @@ function bulk_users_meg(mobile, message) {
             headers: form.getHeaders()
         })
         .then(response => {
-            // console.log(' Message sent:', response.data);
+            console.log(' Message sent:', response.data);
             return response.data;
         })
         .catch(error => {
@@ -131,40 +103,10 @@ function bulk_users_meg(mobile, message) {
 
   
 
-// function bulk_users_meg(mobile,name)
-// {
-//     try {
-//         const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6";
+
+  
 
 
-//         // Customize your message template using the provided parameters
-//         const messageTemplate = `*Name :* ${name}\nPhone: ${mobile}`;
-
-//         const payload = {
-//             chatId: "120363029514494201@g.us",
-//             message: messageTemplate
-//         };
-
-//         const headers = {
-//             'Content-Type': 'application/json'
-//         };
-
-//         return axios.post(url, payload, { headers })
-//             .then(response => {
-//                 console.log(response.data);
-//                 return response.data;  // Assuming you want to return some data after the request
-//             })
-//             .catch(error => {
-//                 console.error(error);
-//                 throw error;  // Rethrow the error to handle it outside the function if needed
-//             });
-      
-//     } catch (err) {
-//         console.error(err);
-//         return false;
-//     }
-
-// }
 function createWhatsappMessage(fullname, email, phone, course, message, source, additional_details) {
     try {
         const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6";

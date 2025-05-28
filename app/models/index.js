@@ -19,5 +19,7 @@ db.order = require("./order.model.js")(mongoose)
 db.careerlist = require("./career-list.model.js")(mongoose)
 db.placements = require("./placement.model.js")(mongoose);
 db.facebook = require("./facebook_leads.js")(mongoose);
+db.message_template = require("./message_template.js")(mongoose);
+
 
 module.exports = db;
