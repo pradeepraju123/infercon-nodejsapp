@@ -137,8 +137,13 @@ exports.filtercontact = async (req, res) => {
 
   // Optional fields
   if (country && country !== '') filter.country = country;
-  if (course && course !== '') filter.course = course;
+  if (course && Array.isArray(course) && course.length > 0) {
+    // FIXED: Correct field name to "courses"
+    filter.courses = { $in: course };
+  }
   if (experience && experience !== '') filter.experience = experience;
+
+  console.log('Final Filter:', filter);
 
   try {
     const contacts = await Contacts.find(filter);
@@ -148,6 +153,7 @@ exports.filtercontact = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch contacts' });
   }
 };
+
 
 
 exports.bulkExcelMes1 = async (req, res) => {
