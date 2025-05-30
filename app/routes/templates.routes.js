@@ -23,7 +23,7 @@ const storage = multer.diskStorage({
 
 // Routes
 router.post("/", upload.single('image'), templates.create);
-router.get("/",authenticateToken,templates.all);
+router.get("/",templates.all);
 router.put("/:id", authenticateToken,upload.single('image'), templates.update);
 router.delete("/:id", authenticateToken,templates.delete);
 app.use('/api/v1/templates', router);

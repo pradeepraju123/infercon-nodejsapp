@@ -14,10 +14,10 @@ module.exports = app => {
      router.post("/bulkupload", authenticateToken,upload.single("file"),users.excelupload);
     //router.post("/bulkupload",upload.single("file"),users.excelupload);
 
-    router.post("/bulkwhatsmes", authenticateToken,users.bulkExcelMes);
+    router.post("/bulkwhatsmes",users.bulkExcelMes);
     router.get("/getall",authenticateToken,users.allcontacts);
     //retrieve 
-    router.post("/filtercontact",authenticateToken,users.filtercontact);
+    router.post("/filtercontact",users.filtercontact);
 
 
     // Retrieve all Tutorials
