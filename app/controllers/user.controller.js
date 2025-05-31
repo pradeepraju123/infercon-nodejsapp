@@ -56,7 +56,8 @@ exports.excelupload = async (req, res) => {
         : Array.isArray(row.languages)
         ? row.languages.map(lang => lang.trim())
         : [];
-
+       
+      
       // Prepend country code to phone number
       const mobile = '91' + row.phone_number;
 
@@ -64,29 +65,57 @@ exports.excelupload = async (req, res) => {
       const existingContact = await Contacts.findOne({ phone_number: mobile });
 
       // Create the contact data
+      // const contactData = {
+      //   date_of_enquiry: typeof row.date_of_enquiry === "number"
+      //     ? excelDateToJSDate(row.date_of_enquiry)
+      //     : row.date_of_enquiry || null,
+      //   fullname: row.fullname,
+      //   location: locationArray,
+      //   phone_number: mobile,
+      //   email: row.email,
+      //   courses: row.courses,
+      //   source: row.source || '',
+      //   degree: row.degree || '',
+      //   specification: row.specification || '',
+      //   year_of_study: row.year_of_study || '',
+      //   experience: row.experience || '',
+      //   is_msg: row.is_msg,
+      //   is_call: row.is_call,
+      //   is_mail: row.is_mail,
+      //   is_fee: row.is_fee,
+      //   languages: languagesArray,
+      //   lead_status: row.candidate_status || '',
+      //   additional_details: row.additional_details || '',
+      //   excel_upload: '1',
+      // };
       const contactData = {
         date_of_enquiry: typeof row.date_of_enquiry === "number"
           ? excelDateToJSDate(row.date_of_enquiry)
-          : row.date_of_enquiry || null,
-        fullname: row.fullname,
+          : (row.date_of_enquiry || null),
+        fullname: row.fullname || '',
         location: locationArray,
         phone_number: mobile,
-        email: row.email,
-        courses: row.courses,
+        email: row.email || '',
+        courses: typeof row.courses === "string"
+          ? row.courses.split(",").map(course => course.trim())
+          : Array.isArray(row.courses)
+          ? row.courses.map(course => course.trim())
+          : [],
         source: row.source || '',
         degree: row.degree || '',
         specification: row.specification || '',
         year_of_study: row.year_of_study || '',
         experience: row.experience || '',
-        is_msg: row.is_msg,
-        is_call: row.is_call,
-        is_mail: row.is_mail,
-        is_fee: row.is_fee,
+        is_msg: row.is_msg || false,
+        is_call: row.is_call || false,
+        is_mail: row.is_mail || false,
+        is_fee: row.is_fee || false,
         languages: languagesArray,
         lead_status: row.candidate_status || '',
         additional_details: row.additional_details || '',
         excel_upload: '1',
       };
+      
       //console.log(contactData);return;
 
       if (!existingContact) {
