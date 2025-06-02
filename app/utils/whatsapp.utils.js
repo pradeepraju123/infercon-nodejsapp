@@ -69,6 +69,7 @@ function bulk_users_meg(mobile, message,file) {
        const  url = "https://media.green-api.com/waInstance1101790684/sendFileByUpload/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6"
         const filePath = file; 
         const fileName = path.basename(filePath);
+        // console.log(filePath);return;
 
         if (!fs.existsSync(filePath)) {
             return;

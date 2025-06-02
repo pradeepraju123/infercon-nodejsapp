@@ -116,7 +116,7 @@ exports.excelupload = async (req, res) => {
         excel_upload: '1',
       };
       
-      //console.log(contactData);return;
+      console.log(contactData);
 
       if (!existingContact) {
         // If contact doesn't exist, add it to the insertion list and for notification
@@ -151,37 +151,49 @@ exports.excelupload = async (req, res) => {
   }
 };
 
+// controller.js or wherever your filtercontact function is
 exports.filtercontact = async (req, res) => {
-  const { startDate, endDate, country, course, experience } = req.body;
+  const { startDate, endDate, country, course, experience, page, pageSize } = req.body;
 
   let filter = {};
 
-  // Handle date range
   if (startDate && endDate) {
     filter.createdAt = {
       $gte: new Date(startDate),
-      $lte: new Date(endDate)
+      $lt: new Date(new Date(endDate).getTime() + 24 * 60 * 60 * 1000)
     };
   }
 
-  // Optional fields
-  if (country && country !== '') filter.country = country;
+  if (country && country.trim() !== '') {
+    filter.location = { $in: [country.trim()] };
+  }
+
   if (course && Array.isArray(course) && course.length > 0) {
-    // FIXED: Correct field name to "courses"
     filter.courses = { $in: course };
   }
-  if (experience && experience !== '') filter.experience = experience;
 
-  console.log('Final Filter:', filter);
+  if (experience && experience.trim() !== '') {
+    filter.experience = experience.trim();
+  }
+
+  const pageNumber = parseInt(page) || 1;
+  const size = parseInt(pageSize) || 10;
+  const skip = (pageNumber - 1) * size;
 
   try {
-    const contacts = await Contacts.find(filter);
-    res.status(200).json({ contacts });
+    const contactsPromise = Contacts.find(filter).skip(skip).limit(size);
+    const countPromise = Contacts.countDocuments(filter);
+
+    const [contacts, total] = await Promise.all([contactsPromise, countPromise]);
+
+    res.status(200).json({ contacts, total });
   } catch (err) {
-    console.error(err);
+    console.error('Error fetching contacts:', err);
     res.status(500).json({ message: 'Failed to fetch contacts' });
   }
 };
+
+
 
 
 
@@ -263,48 +275,45 @@ exports.bulkExcelMes = async (req, res) => {
       return res.status(404).json({ message: 'Template not found for the given course_id' });
     }
 
-    // Use fallback/default values to avoid errors
-    const introduction = selectedCourse.introduction || "Welcome to our course: this is course title.";
-    const closing = selectedCourse.closing || "Thank you for your interest!";
     const courseContent = Array.isArray(selectedCourse.course_content) ? selectedCourse.course_content : [];
+    const template_title_one = selectedCourse.template_title_first || 'We have started our new offer in this course training.';
+    const template_title_second = selectedCourse.template_title_second || ''; // fixed typo here
+    const template_title_third = selectedCourse.template_title_third || 'Offer up to 50% valid for limited slots only.';
     const contactInfo = selectedCourse.contact || {};
 
     const filePath = path.join(__dirname, '..', '..', selectedCourse.imageUrl || 'whatsapp.png');
 
-    // Fetch contact details from DB
     const contacts = await Contacts.find({ phone_number: { $in: mobileNumbers } });
 
     for (const contact of contacts) {
-      const courseMessage = 
-      `Dear ${contact.fullname},
-      Greetings from "INFERCON AUTOMATION PRIVATE LTD CHENNAI"
+      const courseMessage =
+`Dear ${contact.fullname},
 
-      ${introduction.replace('this is course title', courseContent[0] || '')}
+Greetings from Infercon!
 
-      Course Contents:
-      ${courseContent.map((item, i) => `${i + 1}. ${item}`).join('\n')}
+${template_title_one}
+${template_title_second}
+${courseContent.map((item) => `- ${item}`).join('\n')}
 
-      ${closing}
+${template_title_third}
 
-      ${contactInfo.message || ''}
-      ${contactInfo.name || ''}
-      ${contactInfo.phone || ''}
-      ${contactInfo.note || ''}`;
+Thanks,  
+Senthil Kumar  
+Managing Director, Infercon`;
 
-            console.log('Sending to:', contact.phone_number);
-            console.log('Image Path:', filePath);
-            console.log('Message:\n', courseMessage);
-            
-            await bulk_users_meg(contact.phone_number, courseMessage, filePath);
-          }
 
-          return res.status(200).json({ message: 'Messages sent successfully', count: contacts.length });
+      // Uncomment this when ready to send messages
+      await bulk_users_meg(contact.phone_number, courseMessage, filePath);
+    }
 
-        } catch (error) {
-          console.error("Error in bulkExcelMes:", error);
-          return res.status(500).json({ message: "Internal server error" });
-        }
+    return res.status(200).json({ message: 'Messages sent successfully', count: contacts.length });
+
+  } catch (error) {
+    console.error("Error in bulkExcelMes:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
 };
+
 
 
 
