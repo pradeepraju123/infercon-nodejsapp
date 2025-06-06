@@ -337,6 +337,16 @@ exports.allcontacts = async (req, res) => {
     });
   }
 };
+exports.deletecontact = async (req, res) => {
+  try {
+   // res.json({meassgae:'hi'});return;
+    await Contacts.deleteOne(req.params.id);
+    res.json({ message: 'Contact deleted successfully' });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ error: 'Failed to delete contact' });
+  }
+};
 
 
 
