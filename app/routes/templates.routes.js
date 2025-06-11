@@ -52,8 +52,8 @@ module.exports = app => {
     }
   });
 
-  const upload = multer({ storage });
-  router.post("/", upload.single('image'), templates.create);
+const upload = multer({ storage });
+router.post("/", upload.single('image'), templates.create);
 router.get("/",authenticateToken,templates.all);
 router.put("/:id", authenticateToken,upload.single('image'), templates.update);
 router.delete("/:id", authenticateToken,templates.delete);
