@@ -338,15 +338,29 @@ exports.allcontacts = async (req, res) => {
   }
 };
 exports.deletecontact = async (req, res) => {
+  const id = req.params.id;
   try {
-   // res.json({meassgae:'hi'});return;
-   const result = await Contacts.findByIdAndDelete(req.params.id);
-   res.json({ message: 'Contact deleted successfully' });
-  } catch (error) {
-    console.error('Delete error:', error);
-    res.status(500).json({ error: 'Failed to delete contact' });
+    const data = await Contacts.findByIdAndRemove(id);
+    if (!data) {
+      return res.status(404).json({
+        status_code: 404,
+        message: `Cannot delete User with id=${id}. Maybe User was not found!`,
+      });
+    }
+
+    res.status(200).json({
+      status_code: 200,
+      message: "User data was deleted successfully",
+    });
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.status(500).json({
+      status_code: 500,
+      message: "Could not delete User data with id=" + id,
+    });
   }
 };
+
 
 
 

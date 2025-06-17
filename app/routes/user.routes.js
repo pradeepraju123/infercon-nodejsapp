@@ -19,7 +19,7 @@ module.exports = app => {
     //retrieve 
     router.post("/filtercontact",authenticateToken,users.filtercontact);
 
-    router.post("/deletecontact",authenticateToken,users.deletecontact);
+    router.delete("/deletecontact/:id", users.deletecontact);
 
 
     // Retrieve all Tutorials
