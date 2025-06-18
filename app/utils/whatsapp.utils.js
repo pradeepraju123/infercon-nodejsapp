@@ -74,7 +74,9 @@ function bulk_users_meg(mobile, message,file) {
         if (!fs.existsSync(filePath)) {
             return;
         }
-        const chatId = `${mobile}@c.us`;
+        const cleanNumber = mobile.replace(/\D/g, ''); // removes all non-digits
+
+        const chatId = `${cleanNumber}@c.us`;
         // Build form data
         const form = new FormData();
         form.append('chatId', chatId);
@@ -82,7 +84,7 @@ function bulk_users_meg(mobile, message,file) {
         form.append('fileName', fileName);
         form.append('file', fs.createReadStream(filePath));
 
-    
+
         return axios.post(url, form, {
             headers: form.getHeaders()
         })
