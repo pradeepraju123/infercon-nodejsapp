@@ -58,11 +58,11 @@ exports.excelupload = async (req, res) => {
         : [];
        
       
-      // Prepend country code to phone number
-      const mobile = '91' + row.phone_number;
+      // // Prepend country code to phone number
+      // const mobile = '91' + row.phone_number;
 
       // Check if the contact already exists
-      const existingContact = await Contacts.findOne({ phone_number: mobile });
+      const existingContact = await Contacts.findOne({ phone: row.phone });
 
       // Create the contact data
       // const contactData = {
@@ -94,7 +94,7 @@ exports.excelupload = async (req, res) => {
           : (row.date_of_enquiry || null),
         fullname: row.fullname || '',
         location: locationArray,
-        phone_number: mobile,
+        phone: row.phone,
         email: row.email || '',
         courses: typeof row.courses === "string"
           ? row.courses.split(",").map(course => course.trim())
@@ -121,10 +121,10 @@ exports.excelupload = async (req, res) => {
       if (!existingContact) {
         // If contact doesn't exist, add it to the insertion list and for notification
         newContactsToInsert.push(contactData);
-        insertedContactsForMsg.push({ phone_number: mobile, fullname: row.fullname });
+        insertedContactsForMsg.push({ phone: row.phone, fullname: row.fullname });
       } else {
         // If contact exists, update the contact
-        await Contacts.updateOne({ phone_number: mobile }, { $set: contactData });
+        await Contacts.updateOne({ phone: row.phone }, { $set: contactData });
       }
     }
 
