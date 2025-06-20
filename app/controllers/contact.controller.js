@@ -1,4 +1,5 @@
 const {isValidUrl, LocationMap} = require('../utils/data.utils.js');
+const {validatePhoneNumber}=require('../utils/phonevalidation.utils.js')
 const db = require("../models");
 const { createWhatsappMessage,createNotificationMessage, sendWhatsappMessageToUser, LeadNotificationToStaff } = require('../utils/whatsapp.utils.js');
 const Contact = db.contact;
@@ -26,6 +27,30 @@ exports.create = async (req, res) => {
     if (req.body.phone && typeof req.body.phone !== 'string') {
       return res.status(400).json({ status_code: 400, message: "Phone number must be a string." });
     }
+
+if (req.body.phone) {
+  // Get country from request or geo lookup
+  const countryName = req.body.country; 
+
+  if (!countryName) {
+    return res.status(400).json({ 
+      status_code: 400, 
+      message: "Could not determine country for phone validation." 
+    });
+  }
+
+  const validation = validatePhoneNumber(countryName, req.body.phone);
+  
+  if (!validation.valid) {
+    return res.status(400).json({ 
+      status_code: 400, 
+      message: validation.message 
+    });
+  }
+  
+  // Optionally, update phone format if needed
+  req.body.phone = validation.formattedNumber;
+}
      // Validate mobile (if provided)
     //  if (req.body.course && typeof req.body.course !== 'string') {
     //     return res.status(400).json({ status_code: 400, message: "Course must be a string." });
