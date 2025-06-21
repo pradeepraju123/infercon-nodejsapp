@@ -280,6 +280,8 @@ exports.bulkExcelMes = async (req, res) => {
     const template_title_second = selectedCourse.template_title_second || ''; // fixed typo here
     const template_title_third = selectedCourse.template_title_third || 'Offer up to 50% valid for limited slots only.';
     const contactInfo = selectedCourse.contact || {};
+    const name=contact.fullname || '';
+   
 
     const filePath = path.join(__dirname, '..', '..', selectedCourse.imageUrl || 'whatsapp.png');
 
@@ -287,7 +289,7 @@ exports.bulkExcelMes = async (req, res) => {
 
     for (const contact of contacts) {
       const courseMessage =
-`Dear ${contact.fullname},
+`Dear ${name},
 
 Greetings from Infercon!
 
@@ -303,7 +305,9 @@ Managing Director, Infercon`;
 
 
       // Uncomment this when ready to send messages
-      await bulk_users_meg(contact.phone_number, courseMessage, filePath);
+      const response=await bulk_users_meg(contact.phone_number, courseMessage, filePath);
+      console.log(response);
+
     }
 
     return res.status(200).json({ message: 'Messages sent successfully', count: contacts.length });
