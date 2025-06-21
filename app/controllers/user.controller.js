@@ -106,10 +106,10 @@ exports.excelupload = async (req, res) => {
         specification: row.specification || '',
         year_of_study: row.year_of_study || '',
         experience: row.experience || '',
-        is_msg: row.is_msg || false,
-        is_call: row.is_call || false,
-        is_mail: row.is_mail || false,
-        is_fee: row.is_fee || false,
+        is_msg: row.is_msg || 'no',
+        is_call: row.is_call || 'no',
+        is_mail: row.is_mail || 'no',
+        is_fee: row.is_fee || 'no',
         languages: languagesArray,
         lead_status: row.candidate_status || '',
         additional_details: row.additional_details || '',
@@ -181,7 +181,7 @@ exports.filtercontact = async (req, res) => {
   const skip = (pageNumber - 1) * size;
 
   try {
-    const contactsPromise = Contacts.find(filter).skip(skip).limit(size);
+    const contactsPromise = Contacts.find(filter).sort({ createdAt: -1 }).skip(skip).limit(size);
     const countPromise = Contacts.countDocuments(filter);
 
     const [contacts, total] = await Promise.all([contactsPromise, countPromise]);
@@ -283,7 +283,7 @@ exports.bulkExcelMes = async (req, res) => {
 
     const filePath = path.join(__dirname, '..', '..', selectedCourse.imageUrl || 'whatsapp.png');
 
-    const contacts = await Contacts.find({ phone_number: { $in: mobileNumbers } });
+    const contacts = await Contacts.find({ phone: { $in: mobileNumbers } });
 
     for (const contact of contacts) {
       const courseMessage =
@@ -303,7 +303,7 @@ Managing Director, Infercon`;
 
 
       // Uncomment this when ready to send messages
-      await bulk_users_meg(contact.phone_number, courseMessage, filePath);
+      await bulk_users_meg(contact.phone, courseMessage, filePath);
     }
 
     return res.status(200).json({ message: 'Messages sent successfully', count: contacts.length });
