@@ -11,9 +11,11 @@ module.exports = app => {
      router.post("/download", authenticateToken, contact.download);
     // Update a Tutorial with id
     router.post("/:id", authenticateToken, contact.update);
+
+    router.get("/phonevalidation",contact.getAllContacts);
     // Retrieve a single Tutorial with id
     router.get("/:id", contact.findOne);
-
+    
     router.post("/action/update-many", authenticateToken, contact.updateBulk);
 
     router.post("/action/send-notification",authenticateToken, contact.sendnotification);

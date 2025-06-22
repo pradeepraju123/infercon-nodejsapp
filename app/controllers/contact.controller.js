@@ -27,8 +27,7 @@ exports.create = async (req, res) => {
     if (req.body.phone && typeof req.body.phone !== 'string') {
       return res.status(400).json({ status_code: 400, message: "Phone number must be a string." });
     }
-
-if (req.body.phone) {
+    if (req.body.phone) {
   // Get country from request or geo lookup
   const countryName = req.body.country; 
 
@@ -243,6 +242,68 @@ exports.getAll = (req, res) => {
       });
     });
 };
+exports.getAllContacts = async (req, res) => {
+  try {
+    // 1. Get all contacts without batching
+    const contacts = await Contact.find({});
+    
+    let validCount = 0;
+    let invalidCount = 0;
+    let validContacts = []; // Store valid contacts
+
+    // 2. Use bulkWrite for atomic updates (no version conflicts)
+    const bulkOps = contacts.map(contact => {
+      let isValid = 'no';
+      if (contact.phone && contact.country) {
+        const validation = validatePhoneNumber(contact.country, contact.phone);
+        isValid = validation.valid ? 'yes' : 'no';
+        
+        // Count valid/invalid
+        if (isValid === 'yes') {
+          validCount++;
+          validContacts.push(contact); // Add to validContacts array
+        } else {
+          invalidCount++;
+        }
+      } else {
+        invalidCount++; // Count as invalid if missing phone or country
+      }
+      
+      return {
+        updateOne: {
+          filter: { _id: contact._id },
+          update: { $set: { is_vaild: isValid } }
+        }
+      };
+    });
+
+    // 3. Execute all operations in a single batch
+    const result = await Contact.bulkWrite(bulkOps);
+    
+    // 4. Return success with stats + only valid contacts
+    res.status(200).json({
+      status: "success",
+      message: `Validated ${result.modifiedCount} contacts`,
+      valid_data: validContacts, // Only valid contacts
+      stats: {
+        matched: result.matchedCount,
+        modified: result.modifiedCount,
+        valid: validCount,
+        invalid: invalidCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Validation error:', error);
+    res.status(500).json({
+      status: "error",
+      error: error.message,
+      suggestion: "If this fails due to memory limits, use the batched version"
+    });
+  }
+};
+
+
 
 exports.update = (req, res) => {
 
