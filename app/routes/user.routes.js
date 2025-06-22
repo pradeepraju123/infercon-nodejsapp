@@ -19,7 +19,7 @@ module.exports = app => {
 
     router.get("/getall",authenticateToken,users.allcontacts);
     //retrieve 
-    router.post("/filtercontact",authenticateToken,users.filtercontact);
+    router.post("/filtercontact",users.filtercontact);
     // router.post("/filtercontact",users.filtercontact);
 
 
