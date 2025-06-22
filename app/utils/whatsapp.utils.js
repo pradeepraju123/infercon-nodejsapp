@@ -66,10 +66,10 @@ const downloadImage = async (imageUrl, destPath) => {
 function bulk_users_meg(mobile, message,file) {
     try {
                       
-       const  url = "https://media.green-api.com/waInstance1101790684/sendFileByUpload/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6"
+       const  url = "https://media.green-api.com/waInstance1101781607/sendFileByUpload/7d9fc0a0b68944f0b21443e6c9234ea5cb7f67019f9944e6bb"
         const filePath = file; 
         const fileName = path.basename(filePath);
-        // console.log(filePath);return;
+        
 
         if (!fs.existsSync(filePath)) {
             return;
@@ -83,6 +83,8 @@ function bulk_users_meg(mobile, message,file) {
         form.append('caption', message);
         form.append('fileName', fileName);
         form.append('file', fs.createReadStream(filePath));
+        
+        // return;
 
 
         return axios.post(url, form, {

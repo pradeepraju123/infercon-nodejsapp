@@ -9,6 +9,8 @@ var corsOptions = {
 };
 
 app.use(cors(corsOptions));
+require('./cronJobs');
+
 
 // parse requests of content-type - application/json
 app.use(express.json());

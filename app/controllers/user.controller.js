@@ -1,3 +1,4 @@
+const ExcelJS = require('exceljs');
 const xlsx = require('xlsx');
 const db = require("../models");
 const config = require("../config/config.js");
@@ -69,11 +70,12 @@ exports.excelupload = async (req, res) => {
       //   date_of_enquiry: typeof row.date_of_enquiry === "number"
       //     ? excelDateToJSDate(row.date_of_enquiry)
       //     : row.date_of_enquiry || null,
-      //   fullname: row.fullname,
+      //   fullname: row.fullname,  
       //   location: locationArray,
       //   phone_number: mobile,
       //   email: row.email,
       //   courses: row.courses,
+
       //   source: row.source || '',
       //   degree: row.degree || '',
       //   specification: row.specification || '',
@@ -117,9 +119,8 @@ exports.excelupload = async (req, res) => {
       };
       
       console.log(contactData);
-
       if (!existingContact) {
-        // If contact doesn't exist, add it to the insertion list and for notification
+        // If contact doesn't exist, add it to the insertion list and for notification1-25
         newContactsToInsert.push(contactData);
         insertedContactsForMsg.push({ phone: row.phone, fullname: row.fullname });
       } else {
@@ -277,17 +278,26 @@ exports.bulkExcelMes = async (req, res) => {
 
     const courseContent = Array.isArray(selectedCourse.course_content) ? selectedCourse.course_content : [];
     const template_title_one = selectedCourse.template_title_first || 'We have started our new offer in this course training.';
-    const template_title_second = selectedCourse.template_title_second || ''; // fixed typo here
+    const template_title_second = selectedCourse.template_title_second || '';
     const template_title_third = selectedCourse.template_title_third || 'Offer up to 50% valid for limited slots only.';
     const contactInfo = selectedCourse.contact || {};
-    const name=contact.fullname || '';
-   
 
     const filePath = path.join(__dirname, '..', '..', selectedCourse.imageUrl || 'whatsapp.png');
 
     const contacts = await Contacts.find({ phone: { $in: mobileNumbers } });
 
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Message Status');
+
+    worksheet.columns = [
+      { header: 'Name', key: 'name', width: 25 },
+      { header: 'Phone', key: 'phone', width: 20 },
+      { header: 'Status', key: 'status', width: 15 },
+    ];
+
     for (const contact of contacts) {
+      const name = contact.fullname || 'Unknown';
+
       const courseMessage =
 `Dear ${name},
 
@@ -304,17 +314,40 @@ Senthil Kumar
 Managing Director, Infercon`;
 
 
-      // Uncomment this when ready to send messages
-<<<<<<< HEAD
-      const response=await bulk_users_meg(contact.phone_number, courseMessage, filePath);
-      console.log(response);
+try {
+    const response = await bulk_users_meg(contact.phone, courseMessage, filePath);
+    await Contacts.updateOne(
+      { phone: contact.phone },
+      { $set: { is_msg: true, last_sent: new Date() } }
+    );
+    // Check if idMessage is present
+    const status = response.idMessage ? 'Sent' : 'Failed';
+    worksheet.addRow({ name: contact.fullname, phone: contact.phone, status });
+} catch (error) {
+  await Contacts.updateOne(
+    { phone: contact.phone },
+    { $set: { is_msg: false, last_attempt: new Date() } }
+  );
+    console.error('Error sending message:', error.message);
+    
+    // On error, mark it as failed
+    worksheet.addRow({ name: contact.fullname, phone: contact.phone, status: 'Failed' });
+}
 
-=======
-      await bulk_users_meg(contact.phone, courseMessage, filePath);
->>>>>>> master
     }
 
-    return res.status(200).json({ message: 'Messages sent successfully', count: contacts.length });
+    const tempFilePath = path.join(__dirname, '../../downloads', `whatsapp-report-${Date.now()}.xlsx`);
+    await workbook.xlsx.writeFile(tempFilePath);
+
+    res.download(tempFilePath, 'whatsapp-report.xlsx', (err) => {
+      if (err) {
+        console.error('Error sending Excel file:', err);
+        res.status(500).json({ message: 'Failed to download Excel' });
+      }
+
+      // Optional: remove file after sending
+      fs.unlink(tempFilePath, () => {});
+    });
 
   } catch (error) {
     console.error("Error in bulkExcelMes:", error);

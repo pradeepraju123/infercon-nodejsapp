@@ -59,7 +59,7 @@ router.put("/:id", authenticateToken,upload.single('image'), templates.update);
 router.delete("/:id", authenticateToken,templates.delete);
 
   // router.post("/", upload.single('image'), templates.create);
-  // router.get("/", templates.all);
+  //  router.get("/", templates.all);
   // router.put("/:id", upload.single('image'), templates.update);
   // router.delete("/:id", templates.delete);
 
