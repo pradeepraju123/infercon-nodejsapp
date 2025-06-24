@@ -13,6 +13,8 @@ module.exports = app => {
     router.post("/:id", authenticateToken, contact.update);
 
     router.get("/phonevalidation",contact.getAllContacts);
+
+    router.get("/batches",contact.getPhoneNumbersInChunks)
     // Retrieve a single Tutorial with id
     router.get("/:id", contact.findOne);
     

@@ -242,6 +242,8 @@ exports.getAll = (req, res) => {
       });
     });
 };
+
+
 exports.getAllContacts = async (req, res) => {
   try {
     // 1. Get all contacts without batching
@@ -303,7 +305,44 @@ exports.getAllContacts = async (req, res) => {
   }
 };
 
-
+// Add this new method to your contact.controller.js
+exports.getPhoneNumbersInChunks = async (req, res) => {
+  try {
+    // 1. Get all contacts from the database
+    const contacts = await Contact.find({});
+    
+    // 2. Extract phone numbers and filter out empty/null values
+    const phoneNumbers = contacts
+      .map(contact => contact.phone)
+      .filter(phone => phone && phone.trim() !== '');
+    
+    // 3. Split into chunks of 10 numbers each
+    const chunkSize = 10;
+    const chunkedPhoneNumbers = [];
+    
+    for (let i = 0; i < phoneNumbers.length; i += chunkSize) {
+      const chunk = phoneNumbers.slice(i, i + chunkSize);
+      chunkedPhoneNumbers.push(chunk);
+    }
+    
+    // 4. Return the chunked phone numbers
+    res.status(200).json({
+      status_code: 200,
+      message: "Phone numbers retrieved and chunked successfully",
+      data: chunkedPhoneNumbers,
+      total_numbers: phoneNumbers.length,
+      total_chunks: chunkedPhoneNumbers.length
+    });
+    
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({
+      status_code: 500,
+      message: "Error retrieving phone numbers",
+      error: error.message
+    });
+  }
+};
 
 exports.update = (req, res) => {
 
