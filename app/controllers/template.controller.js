@@ -1,7 +1,11 @@
 const db = require("../models");
 const MessageTemplate = db.message_template;
+const { createWhatsappMessage,createNotificationMessage, sendWhatsappMessageToUser, LeadNotificationToStaff } = require('../utils/whatsapp.utils.js');
+
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
+
 exports.create = async (req, res) => {
   try {
     const {
@@ -95,6 +99,73 @@ exports.update = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
+// exports.whati = async (req, res) => {
+
+// try {
+//   const whatsappNumber='9384189855';
+//   console.log(whatsappNumber);
+//     const whatsapp_authorization_dev = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxZTljMmYyOC1hMGM4LTRjZDItYTk5Ny0zOWNmNmIxNzA0NDciLCJ1bmlxdWVfbmFtZSI6InByYWRlZXAuckBpbmZlcmNvbi5jb20iLCJuYW1laWQiOiJwcmFkZWVwLnJAaW5mZXJjb24uY29tIiwiZW1haWwiOiJwcmFkZWVwLnJAaW5mZXJjb24uY29tIiwiYXV0aF90aW1lIjoiMDYvMzAvMjAyNSAxNDo1MDowNSIsInRlbmFudF9pZCI6IjQ2MTAzNyIsImRiX25hbWUiOiJtdC1wcm9kLVRlbmFudHMiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBRE1JTklTVFJBVE9SIiwiZXhwIjoyNTM0MDIzMDA4MDAsImlzcyI6IkNsYXJlX0FJIiwiYXVkIjoiQ2xhcmVfQUkifQ.zusBUuFmVHd4sWG10gUKzps-Dutmu6ZWgD0pqWQmqWo';
+//     const payload={
+//         "template_name": "lead_generation_notification",
+//         "broadcast_name": "lead_generation_notification",
+//         "parameters": [
+//             {
+//                 "name": "name",
+//                 "value": "John"
+//             },
+//             {
+//                 "name": "email",
+//                 "value": "pradeep.r@infercon.com"
+//             },
+//             {
+//                 "name" : "mobile",
+//                 "value" : "6381794189"
+//             },
+//             {
+//                 "name" : "country",
+//                 "value" : "India"
+//             },
+//             {
+//                 "name" : "message",
+//                 "value" : "Testing message"
+//             },
+//             {
+//                 "name" : "courses",
+//                 "value" : "Siemens PLC, Allen Bradley PLC"
+//             }
+//         ]
+//     }
+//     const response = await axios.post(
+//       `https://live-mt-server.wati.io/461037/api/v1/sendTemplateMessage?whatsappNumber=${whatsappNumber}`,
+//       payload,
+//       {
+//         headers: {
+//           'Content-Type': 'application/json',
+//           Authorization: `Bearer ${whatsapp_authorization_dev}`,
+//         },
+//       }
+//     );
+
+//     return response.data;
+//   } catch (error) {
+//     console.error('Error sending WATI message:', error.response?.data || error.message);
+//     return { error: error.response?.data || error.message };
+//   }
+
+   
+// };
+exports.whati = async (req, res) => {
+  try {
+    const send = await createNotificationMessage(9384189855);
+    console.log(send);
+    res.send({ message: send });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: 'Failed to send message' });
+  }
+};
+
 
 exports.delete = async (req, res) => {
   try {

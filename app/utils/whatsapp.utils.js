@@ -430,37 +430,88 @@ function sendBookingNotification(fullname, email, phone, date, time, message) {
     }
 }
 
-function createNotificationMessage(mobile, count) {
-    try {
-        const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6";
+// function createNotificationMessage(mobile, count) {
+//     try {
+//         const url = "https://api.green-api.com/waInstance1101790684/sendMessage/97f9a5416c5e4f3a9955c8da3a49926bdc38e41a23564666a6";
 
-        // Customize your message template using the provided parameters
-        const messageTemplate = `You got ${count} new leads`;
-        const chatId = mobile + "@c.us";
-        const payload = {
-            chatId: chatId, // Assuming mobile is the staff's mobile number
-            message: messageTemplate
-        };
+//         // Customize your message template using the provided parameters
+//         const messageTemplate = `You got ${count} new leads`;
+//         const chatId = mobile + "@c.us";
+//         const payload = {
+//             chatId: chatId, // Assuming mobile is the staff's mobile number
+//             message: messageTemplate
+//         };
 
-        const headers = {
-            'Content-Type': 'application/json'
-        };
+//         const headers = {
+//             'Content-Type': 'application/json'
+//         };
 
-        return axios.post(url, payload, { headers })
-            .then(response => {
-                console.log(response.data);
-                return response.data;  // Assuming you want to return some data after the request
-            })
-            .catch(error => {
-                console.error(error);
-                throw error;  // Rethrow the error to handle it outside the function if needed
-            });
-    } catch (err) {
-        console.error(err);
-        return false;
+//         return axios.post(url, payload, { headers })
+//             .then(response => {
+//                 console.log(response.data);
+//                 return response.data;  // Assuming you want to return some data after the request
+//             })
+//             .catch(error => {
+//                 console.error(error);
+//                 throw error;  // Rethrow the error to handle it outside the function if needed
+//             });
+//     } catch (err) {
+//         console.error(err);
+//         return false;
+//     }
+// }
+async function createNotificationMessage(mobile, count) {
+   try {
+    const whatsapp_authorization_dev = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIxZTljMmYyOC1hMGM4LTRjZDItYTk5Ny0zOWNmNmIxNzA0NDciLCJ1bmlxdWVfbmFtZSI6InByYWRlZXAuckBpbmZlcmNvbi5jb20iLCJuYW1laWQiOiJwcmFkZWVwLnJAaW5mZXJjb24uY29tIiwiZW1haWwiOiJwcmFkZWVwLnJAaW5mZXJjb24uY29tIiwiYXV0aF90aW1lIjoiMDYvMzAvMjAyNSAxNDo1MDowNSIsInRlbmFudF9pZCI6IjQ2MTAzNyIsImRiX25hbWUiOiJtdC1wcm9kLVRlbmFudHMiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBRE1JTklTVFJBVE9SIiwiZXhwIjoyNTM0MDIzMDA4MDAsImlzcyI6IkNsYXJlX0FJIiwiYXVkIjoiQ2xhcmVfQUkifQ.zusBUuFmVHd4sWG10gUKzps-Dutmu6ZWgD0pqWQmqWo';
+    const payload={
+        "template_name": "lead_generation_notification",
+        "broadcast_name": "lead_generation_notification",
+        "parameters": [
+            {
+                "name": "name",
+                "value": "John"
+            },
+            {
+                "name": "email",
+                "value": "pradeep.r@infercon.com"
+            },
+            {
+                "name" : "mobile",
+                "value" : "6381794189"
+            },
+            {
+                "name" : "country",
+                "value" : "India"
+            },
+            {
+                "name" : "message",
+                "value" : "Testing message"
+            },
+            {
+                "name" : "courses",
+                "value" : "Siemens PLC, Allen Bradley PLC"
+            }
+        ]
     }
-}
+    const response = await axios.post(
+      `https://live-mt-server.wati.io/461037/api/v1/sendTemplateMessage?whatsappNumber=${mobile}`,
+      payload,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${whatsapp_authorization_dev}`,
+        },
+      }
+    );
+    console.log('response');
+    console.log(response);
 
+    return response.data;
+  } catch (error) {
+    console.error('Error sending WATI message:', error.response?.data || error.message);
+    return { error: error.response?.data || error.message };
+  }
+}
 
 function sendWhatsappMessageToUser(mobile, message) {
     try {

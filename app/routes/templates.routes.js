@@ -57,6 +57,8 @@ router.post("/", authenticateToken,upload.single('image'), templates.create);
 router.get("/",authenticateToken,templates.all);
 router.put("/:id", authenticateToken,upload.single('image'), templates.update);
 router.delete("/:id", authenticateToken,templates.delete);
+router.post("/wati",templates.whati);
+
 
   // router.post("/", upload.single('image'), templates.create);
   //  router.get("/", templates.all);
