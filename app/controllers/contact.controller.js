@@ -6,7 +6,7 @@ const User = db.users
 const path = require('path');
 const fs = require('fs');
 const exceljs = require('exceljs');
-const moment = require('moment');
+const moment = require('moment-timezone');
 // Create and Save a new Tutorial
 
 exports.create = async (req, res) => {
@@ -134,7 +134,7 @@ exports.create = async (req, res) => {
         createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message, data.source, data.additional_details);
         if (staff_mobile){
           console.log(staff_mobile)
-          // LeadNotificationToStaff(assignee,staff_mobile, data.fullname, data.email, data.phone, data.course)
+           LeadNotificationToStaff(assignee,staff_mobile, data.fullname, data.email, data.phone, data.course)
         }
         
       res.status(201).json({ status_code: 201, message: "Contact created successfully", data: data });
@@ -196,13 +196,17 @@ exports.getAll = (req, res) => {
     .then(data => {
       // Process the result to extract date and time from createdAt
       const formattedData = data.map(item => {
-        const createdAt = moment(item.createdAt); // Use moment to format date/time
-        return {
-          ...item._doc, // Copy all other fields
-          created_date: createdAt.format('YYYY-MM-DD'), // Extract date part
-          created_time: createdAt.format('HH:mm:ss') // Extract time part
-        };
-      });
+      const createdAt = moment(item.createdAt).tz('Asia/Kolkata'); // IST
+    console.log("Original UTC:", item.createdAt, "| IST formatted:", createdAt.format('YYYY-MM-DD HH:mm:ss'));
+
+      return {
+        ...item._doc,
+        created_date: createdAt.format('YYYY-MM-DD'),
+        created_time: createdAt.format('HH:mm:ss')
+      };
+    });
+
+       
 
       res.status(200).json({
         status_code: 200,
@@ -407,5 +411,37 @@ exports.sendMessageToUser = async (req, res) => {
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ status_code: 500, message: "Internal Server Error" });
+  }
+};
+
+exports.sendLeadDetailsToStaff = async (req, res) => {
+  try {
+    const { contact_ids } = req.body;
+
+    if (!contact_ids || !Array.isArray(contact_ids)) {
+      return res.status(400).json({ message: "Invalid contact_ids provided" });
+    }
+
+    for (const id of contact_ids) {
+      const lead = await Contact.findById(id);
+      if (lead && lead.assignee) {
+        const staff = await User.findOne({ name: lead.assignee });
+        if (staff && staff.phone_number) {
+          await LeadNotificationToStaff(
+            staff.name,
+            staff.phone_number,
+            lead.fullname,
+            lead.email,
+            lead.phone,
+            lead.courses
+          );
+        }
+      }
+    }
+
+    res.status(200).json({ message: 'Lead details sent to respective staff successfully.' });
+  } catch (err) {
+    console.error('Error sending lead details:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 };
