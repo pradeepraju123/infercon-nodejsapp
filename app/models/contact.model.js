@@ -11,6 +11,8 @@ module.exports = mongoose => {
           courses:[],
           message: String,
           lead_status: String,
+          followup_date: Date,
+          followup_time: String, 
           assignee: String,
           source: String,
           degree: String,
@@ -26,7 +28,13 @@ module.exports = mongoose => {
           city: String,
           state: String,
           country: String,
-          excel_upload: { type: Number, default: 0 } // Default value set to 0
+          excel_upload: { type: Number, default: 0 }, // Default value set to 0
+          comments:[{texts:String,
+            createdAt:{
+              type:Date,
+              default:Date.now
+            }
+          }]
 
         },
         { timestamps: true }
