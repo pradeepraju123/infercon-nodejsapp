@@ -23,7 +23,11 @@ module.exports = mongoose => {
           governmentId: String,
           currencyType: String,
           feesCurrency: String,
-          document: String
+          document: String,
+          totalAmount: Number,
+          pendingAmount: Number,
+          pendingInstallments: Number,
+          perInstallmentAmount:  Number,
         },
         { timestamps: true }
       )
