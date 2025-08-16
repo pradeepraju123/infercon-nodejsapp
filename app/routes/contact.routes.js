@@ -28,7 +28,7 @@ module.exports = app => {
 
    router.post("/:id/mark-registered", contact.markAsRegistered); // Mark a lead as registered
    
-    router.post("/filter/registered", contact.filterByRegistrationStatus); // Filter leads
+    router.post("/filter/registered",authenticateToken, contact.filterByRegistrationStatus); // Filter leads
 
 
     
