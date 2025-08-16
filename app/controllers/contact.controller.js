@@ -1,4 +1,5 @@
 const {isValidUrl, LocationMap} = require('../utils/data.utils.js');
+const {validatePhoneNumber}=require('../utils/phonevalidation.utils.js')
 const db = require("../models");
 const { createWhatsappMessage,createNotificationMessage, sendWhatsappMessageToUser, LeadNotificationToStaff } = require('../utils/whatsapp.utils.js');
 const Contact = db.contact;
@@ -26,6 +27,29 @@ exports.create = async (req, res) => {
     if (req.body.phone && typeof req.body.phone !== 'string') {
       return res.status(400).json({ status_code: 400, message: "Phone number must be a string." });
     }
+    if (req.body.phone) {
+  // Get country from request or geo lookup
+  const countryName = req.body.country; 
+
+  if (!countryName) {
+    return res.status(400).json({ 
+      status_code: 400, 
+      message: "Could not determine country for phone validation." 
+    });
+  }
+
+  const validation = validatePhoneNumber(countryName, req.body.phone);
+  
+  if (!validation.valid) {
+    return res.status(400).json({ 
+      status_code: 400, 
+      message: validation.message 
+    });
+  }
+  
+  // Optionally, update phone format if needed
+  req.body.phone = validation.formattedNumber;
+}
      // Validate mobile (if provided)
     //  if (req.body.course && typeof req.body.course !== 'string') {
     //     return res.status(400).json({ status_code: 400, message: "Course must be a string." });
@@ -230,6 +254,107 @@ exports.getAll = async (req, res) => {
     res.status(500).json({
       status_code: 500,
       message: err.message || "Some error occurred while retrieving contact data."
+    });
+  }
+};
+
+
+exports.getAllContacts = async (req, res) => {
+  try {
+    // 1. Get all contacts without batching
+    const contacts = await Contact.find({});
+    
+    let validCount = 0;
+    let invalidCount = 0;
+    let validContacts = []; // Store valid contacts
+
+    // 2. Use bulkWrite for atomic updates (no version conflicts)
+    const bulkOps = contacts.map(contact => {
+      let isValid = 'no';
+      if (contact.phone && contact.country) {
+        const validation = validatePhoneNumber(contact.country, contact.phone);
+        isValid = validation.valid ? 'yes' : 'no';
+        
+        // Count valid/invalid
+        if (isValid === 'yes') {
+          validCount++;
+          validContacts.push(contact); // Add to validContacts array
+        } else {
+          invalidCount++;
+        }
+      } else {
+        invalidCount++; // Count as invalid if missing phone or country
+      }
+      
+      return {
+        updateOne: {
+          filter: { _id: contact._id },
+          update: { $set: { is_vaild: isValid } }
+        }
+      };
+    });
+
+    // 3. Execute all operations in a single batch
+    const result = await Contact.bulkWrite(bulkOps);
+    
+    // 4. Return success with stats + only valid contacts
+    res.status(200).json({
+      status: "success",
+      message: `Validated ${result.modifiedCount} contacts`,
+      valid_data: validContacts, // Only valid contacts
+      stats: {
+        matched: result.matchedCount,
+        modified: result.modifiedCount,
+        valid: validCount,
+        invalid: invalidCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Validation error:', error);
+    res.status(500).json({
+      status: "error",
+      error: error.message,
+      suggestion: "If this fails due to memory limits, use the batched version"
+    });
+  }
+};
+
+// Add this new method to your contact.controller.js
+exports.getPhoneNumbersInChunks = async (req, res) => {
+  try {
+    // 1. Get all contacts from the database
+    const contacts = await Contact.find({});
+    
+    // 2. Extract phone numbers and filter out empty/null values
+    const phoneNumbers = contacts
+      .map(contact => contact.phone)
+      .filter(phone => phone && phone.trim() !== '');
+    
+    // 3. Split into chunks of 10 numbers each
+    const chunkSize = 10;
+    const chunkedPhoneNumbers = [];
+    
+    for (let i = 0; i < phoneNumbers.length; i += chunkSize) {
+      const chunk = phoneNumbers.slice(i, i + chunkSize);
+      chunkedPhoneNumbers.push(chunk);
+    }
+    
+    // 4. Return the chunked phone numbers
+    res.status(200).json({
+      status_code: 200,
+      message: "Phone numbers retrieved and chunked successfully",
+      data: chunkedPhoneNumbers,
+      total_numbers: phoneNumbers.length,
+      total_chunks: chunkedPhoneNumbers.length
+    });
+    
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({
+      status_code: 500,
+      message: "Error retrieving phone numbers",
+      error: error.message
     });
   }
 };

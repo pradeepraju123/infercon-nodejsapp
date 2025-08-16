@@ -23,6 +23,7 @@ module.exports = mongoose => {
           is_call: { type: String, enum: ['yes', 'no'], default: 'no' },
           is_mail: { type: String, enum: ['yes', 'no'], default: 'no' },
           is_fee: { type: String, enum: ['yes', 'no'], default: 'no' },
+          is_vaild:{type:String, enum:['yes','no'],default:'no'},
           languages: [],
           additional_details: String,
           city: String,
