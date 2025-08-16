@@ -603,25 +603,24 @@ exports.sendLeadDetailsToStaff = async (req, res) => {
   
 };
 
-// Add a comment to a contact
 exports.addComment = async (req, res) => {
   try {
     const contactId = req.params.id;  // Get contact ID from URL
-    const { texts, createdBy } = req.body;  // Get comment data
+    const { texts, createdBy } = req.body;  // Get comment data and creator's name
 
     // Validate input
     if (!texts) {
       return res.status(400).json({ message: "Comment text is required" });
     }
 
-    // Add the new comment (automatically gets timestamp)
+    // Add the new comment with creator's name and timestamp
     const updatedContact = await Contact.findByIdAndUpdate(
       contactId,
       {
         $push: {
           comments: {
             texts,
-            // createdBy: createdBy || 'Anonymous'
+            createdBy: createdBy || 'Anonymous',  // Use provided name or default to 'Anonymous'
             // createdAt is added automatically
           }
         }
@@ -645,7 +644,7 @@ exports.getComments = async (req, res) => {
       return res.status(404).json({ message: "Contact not found" });
     }
     // Sort comments in memory (newest first)
-    const sortedComments = contact.comments.sort((a, b) => b.createdAt - a.createdAt);
+    const sortedComments = contact.comments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     res.status(200).json({
       message: "Comments retrieved successfully",
       comments: sortedComments
@@ -657,6 +656,25 @@ exports.getComments = async (req, res) => {
 
 exports.markAsRegistered = async (req, res) => {
   try {
+    // First find the contact to check its current status
+    const contact = await Contact.findById(req.params.id);
+    
+    if (!contact) {
+      return res.status(404).json({
+        status_code: 404,
+        message: "Lead not found."
+      });
+    }
+
+    // Check if lead status is "Finalized"
+    if (contact.lead_status !== 'Finalized') {
+      return res.status(400).json({
+        status_code: 400,
+        message: "Only leads with 'Finalized' status can be marked as registered."
+      });
+    }
+
+    // If status is Finalized, proceed with marking as registered
     const updatedContact = await Contact.findByIdAndUpdate(
       req.params.id,
       {
@@ -664,12 +682,7 @@ exports.markAsRegistered = async (req, res) => {
       },
       { new: true }
     );
-    if (!updatedContact) {
-      return res.status(404).json({
-        status_code: 404,
-        message: "Lead not found."
-      });
-    }
+
     res.status(200).json({
       status_code: 200,
       message: "Lead marked as registered.",
@@ -682,17 +695,37 @@ exports.markAsRegistered = async (req, res) => {
     });
   }
 };
+
 exports.filterByRegistrationStatus = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.body;
     const skip = (page - 1) * limit;
-    // Set isRegistered to 1 to only get registered leads
+    const isStaff = req.user?.userType === 'staff';
+    
+    // Base query for registered leads
     const query = { isRegistered: 1 };
+
+    // If staff is requesting, only show their assigned registered leads
+    if (isStaff) {
+      const staff = await User.findById(req.user.userId);
+      if (!staff) {
+        return res.status(404).json({
+          status_code: 404,
+          message: "Staff user not found."
+        });
+      }
+      query.$or = [
+        { assignee: staff.name },
+        { assignee: staff.username }
+      ];
+    }
+
     const total = await Contact.countDocuments(query);
     const leads = await Contact.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+
     res.status(200).json({
       status_code: 200,
       message: "Registered leads retrieved successfully.",

@@ -31,6 +31,7 @@ module.exports = mongoose => {
           country: String,
           excel_upload: { type: Number, default: 0 }, // Default value set to 0
           comments:[{texts:String,
+            createdBy: String,
             createdAt:{
               type:Date,
               default:Date.now
