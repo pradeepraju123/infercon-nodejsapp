@@ -8,17 +8,33 @@ module.exports = app => {
     // Retrieve all Tutorials
     router.post("/get", authenticateToken, contact.getAll);
      // Download contact details
-     router.post("/download", authenticateToken, contact.download);
+     router.post("/download", contact.download);
     // Update a Tutorial with id
-    router.post("/:id", authenticateToken, contact.update);
+    router.post("/:id",  contact.update);
+
+    router.get("/phonevalidation",contact.getAllContacts);
+
+    router.get("/batches",contact.getPhoneNumbersInChunks)
     // Retrieve a single Tutorial with id
     router.get("/:id", contact.findOne);
-
+    
     router.post("/action/update-many", authenticateToken, contact.updateBulk);
 
-    router.post("/action/send-notification",authenticateToken, contact.sendnotification);
+    router.post("/action/send-notification", contact.sendnotification);
    
-    router.post("/action/send-message",authenticateToken, contact.sendMessageToUser);
+    router.post("/action/send-message", contact.sendMessageToUser);
+    
+    router.post("/action/send-lead-details",contact.sendLeadDetailsToStaff);
+
+    router.post('/contacts/:id/comments', contact.addComment);
+
+   router.get('/contacts/:id/comments', contact.getComments);
+
+   router.post("/:id/mark-registered", contact.markAsRegistered); // Mark a lead as registered
+   
+    router.post("/filter/registered",authenticateToken, contact.filterByRegistrationStatus); // Filter leads
+
+
     
     app.use('/api/v1/contact', router);
     

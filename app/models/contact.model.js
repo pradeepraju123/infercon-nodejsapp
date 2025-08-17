@@ -11,6 +11,8 @@ module.exports = mongoose => {
           courses:[],
           message: String,
           lead_status: String,
+          followup_date: Date,
+          followup_time: String, 
           assignee: String,
           source: String,
           degree: String,
@@ -21,12 +23,20 @@ module.exports = mongoose => {
           is_call: { type: String, enum: ['yes', 'no'], default: 'no' },
           is_mail: { type: String, enum: ['yes', 'no'], default: 'no' },
           is_fee: { type: String, enum: ['yes', 'no'], default: 'no' },
+          is_vaild:{type:String, enum:['yes','no'],default:'no'},
           languages: [],
           additional_details: String,
           city: String,
           state: String,
           country: String,
-          excel_upload: { type: Number, default: 0 } // Default value set to 0
+          excel_upload: { type: Number, default: 0 }, // Default value set to 0
+          comments:[{texts:String,
+            createdBy: String,
+            createdAt:{
+              type:Date,
+              default:Date.now
+            }
+          }]
 
         },
         { timestamps: true }

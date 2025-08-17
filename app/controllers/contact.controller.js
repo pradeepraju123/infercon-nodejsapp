@@ -1,4 +1,5 @@
 const {isValidUrl, LocationMap} = require('../utils/data.utils.js');
+const {validatePhoneNumber}=require('../utils/phonevalidation.utils.js')
 const db = require("../models");
 const { createWhatsappMessage,createNotificationMessage, sendWhatsappMessageToUser, LeadNotificationToStaff } = require('../utils/whatsapp.utils.js');
 const Contact = db.contact;
@@ -6,7 +7,7 @@ const User = db.users
 const path = require('path');
 const fs = require('fs');
 const exceljs = require('exceljs');
-const moment = require('moment');
+const moment = require('moment-timezone');
 // Create and Save a new Tutorial
 
 exports.create = async (req, res) => {
@@ -26,6 +27,29 @@ exports.create = async (req, res) => {
     if (req.body.phone && typeof req.body.phone !== 'string') {
       return res.status(400).json({ status_code: 400, message: "Phone number must be a string." });
     }
+    if (req.body.phone) {
+  // Get country from request or geo lookup
+  const countryName = req.body.country; 
+
+  if (!countryName) {
+    return res.status(400).json({ 
+      status_code: 400, 
+      message: "Could not determine country for phone validation." 
+    });
+  }
+
+  const validation = validatePhoneNumber(countryName, req.body.phone);
+  
+  if (!validation.valid) {
+    return res.status(400).json({ 
+      status_code: 400, 
+      message: validation.message 
+    });
+  }
+  
+  // Optionally, update phone format if needed
+  req.body.phone = validation.formattedNumber;
+}
      // Validate mobile (if provided)
     //  if (req.body.course && typeof req.body.course !== 'string') {
     //     return res.status(400).json({ status_code: 400, message: "Course must be a string." });
@@ -131,104 +155,230 @@ exports.create = async (req, res) => {
   // Save the training data
   contact.save()
     .then(data => {
+      console.log("✅ Data saved to MongoDB:", data);
         createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message, data.source, data.additional_details);
         if (staff_mobile){
           console.log(staff_mobile)
-          // LeadNotificationToStaff(assignee,staff_mobile, data.fullname, data.email, data.phone, data.course)
+           LeadNotificationToStaff(assignee,staff_mobile, data.fullname, data.email, data.phone, data.course)
         }
         
       res.status(201).json({ status_code: 201, message: "Contact created successfully", data: data });
     })
     .catch(err => {
+       console.error("❌ MongoDB Save Error:", err);
       res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while Generating query." });
     });
     };
 
 // Retrieve all Training from the database with pagination.
-exports.getAll = (req, res) => {
-  const { searchTerm, start_date, end_date, sort_by,page_size,page_num, assignee } = req.body;
-  console.log('Body Parameters:', req.body);
-
-
-  let condition = {};
-  // Convert page_size and page_num to integers, default to 10 items per page and start from page 1
-  // const pageSize = parseInt(page_size, 10) || 10;
-  // const pageNum = parseInt(page_num, 10) || 1;
-  // if (searchTerm) {
-  //   condition.fullname = { $regex: new RegExp(searchTerm, "i") };
-  // }
-
-  //Add filtering conditions based on the provided parameters
-  if (start_date && end_date) {
-    condition.createdAt = {
-      $gte: new Date(start_date),
-      $lte: new Date(end_date), // Assuming end_date should include the entire day
-    };
-  }
-
-  if (searchTerm) {
-    // Add a search condition based on your specific requirements
-    condition.$or = [
-      { fullname: { $regex: new RegExp(searchTerm, 'i') } }, // Replace 'field1' with the actual field to search
-      { email: { $regex: new RegExp(searchTerm, 'i') } }, // Replace 'field2' with another field to search
-      { phone: { $regex: new RegExp(searchTerm, 'i') } },
-      {courses: { $regex: new RegExp(searchTerm, 'i') }}
-
-      
-      // Add more fields as needed
-    ];
-  }
-  if (assignee) {
-    condition.assignee = assignee; // Assuming assignee is a direct match, modify as needed
-  }
-   // Add filtering conditions based on the provided parameters
-   if (start_date && end_date) {
-    condition.createdAt = {
-      $gte: new Date(start_date),
-      $lte: new Date(end_date), // Assuming end_date should include the entire day
-    };
-  }
-  // Calculate the number of documents to skip
-  // const skip = (pageNum - 1) * pageSize;
-  // Fetch data from the database
-  Contact.find(condition)
-    .sort({ createdAt: -1 })
-    .then(data => {
-      // Process the result to extract date and time from createdAt
-      const formattedData = data.map(item => {
-        const createdAt = moment(item.createdAt); // Use moment to format date/time
-        return {
-          ...item._doc, // Copy all other fields
-          created_date: createdAt.format('YYYY-MM-DD'), // Extract date part
-          created_time: createdAt.format('HH:mm:ss') // Extract time part
-        };
-      });
-
-      res.status(200).json({
-        status_code: 200,
-        message: "Training data retrieved successfully",
-        data: formattedData
-      });
-    })
-    .catch(err => {
-      console.error('Error:', err); // Log any errors
-      res.status(500).json({
-        status_code: 500,
-        message: err.message || "Some error occurred while retrieving training data."
-      });
+exports.getAll = async (req, res) => {
+  try {
+    const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee } = req.body;
+    const isStaff = req.user?.userType === 'staff';
+    const isRegularUser = req.user?.userType === 'user'; // Add this line
+    console.log('Body Parameters:', req.body);
+    let condition = {};
+    const page = parseInt(page_num) || 1;
+    const limit = parseInt(page_size) || 10;
+    const skip = (page - 1) * limit;
+    // If staff is requesting, only show their assigned leads
+    if (isStaff) {
+      const staff = await User.findById(req.user.userId);
+      if (!staff) {
+        return res.status(404).json({
+          status_code: 404,
+          message: "Staff user not found."
+        });
+      }
+      condition.$or = [
+        { assignee: staff.name },
+        { assignee: staff.username }
+      ];
+    }
+    // If regular user is requesting, only show their own leads
+    else if (isRegularUser) {
+      condition.$or = [
+        { email: req.user.email }, // Assuming email matches
+        { phone: req.user.phone_number } // Or phone matches
+      ];
+    }
+    // Rest of the function remains the same...
+    // Add filtering conditions based on the provided parameters
+    if (start_date && end_date) {
+      condition.createdAt = {
+        $gte: new Date(start_date),
+        $lte: new Date(new Date(end_date).setHours(23, 59, 59, 999))
+      };
+    }
+    if (searchTerm) {
+      condition.$or = [
+        ...(condition.$or || []), // Keep existing conditions
+        { fullname: { $regex: new RegExp(searchTerm, 'i') } },
+        { email: { $regex: new RegExp(searchTerm, 'i') } },
+        { phone: { $regex: new RegExp(searchTerm, 'i') } },
+        { courses: { $regex: new RegExp(searchTerm, 'i') } }
+      ];
+    }
+    if (assignee && !isStaff && !isRegularUser) { // Only allow assignee filter for admin requests
+      condition.assignee = assignee;
+    }
+    // Get total count for pagination
+    const total = await Contact.countDocuments(condition);
+    // Fetch data from the database
+    const data = await Contact.find(condition)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    // Process the result to extract date and time from createdAt
+    const formattedData = data.map(item => {
+      const createdAt = moment(item.createdAt).tz('Asia/Kolkata');
+      return {
+        ...item._doc,
+        created_date: createdAt.format('YYYY-MM-DD'),
+        created_time: createdAt.format('HH:mm:ss')
+      };
     });
+    res.status(200).json({
+      status_code: 200,
+      message: "Contact data retrieved successfully",
+      data: formattedData,
+      pagination: {
+        current_page: page,
+        total_pages: Math.ceil(total / limit),
+        total_items: total,
+        items_per_page: limit
+      }
+    });
+  } catch (err) {
+    console.error('Error:', err);
+    res.status(500).json({
+      status_code: 500,
+      message: err.message || "Some error occurred while retrieving contact data."
+    });
+  }
+};
+
+
+exports.getAllContacts = async (req, res) => {
+  try {
+    // 1. Get all contacts without batching
+    const contacts = await Contact.find({});
+    
+    let validCount = 0;
+    let invalidCount = 0;
+    let validContacts = []; // Store valid contacts
+
+    // 2. Use bulkWrite for atomic updates (no version conflicts)
+    const bulkOps = contacts.map(contact => {
+      let isValid = 'no';
+      if (contact.phone && contact.country) {
+        const validation = validatePhoneNumber(contact.country, contact.phone);
+        isValid = validation.valid ? 'yes' : 'no';
+        
+        // Count valid/invalid
+        if (isValid === 'yes') {
+          validCount++;
+          validContacts.push(contact); // Add to validContacts array
+        } else {
+          invalidCount++;
+        }
+      } else {
+        invalidCount++; // Count as invalid if missing phone or country
+      }
+      
+      return {
+        updateOne: {
+          filter: { _id: contact._id },
+          update: { $set: { is_vaild: isValid } }
+        }
+      };
+    });
+
+    // 3. Execute all operations in a single batch
+    const result = await Contact.bulkWrite(bulkOps);
+    
+    // 4. Return success with stats + only valid contacts
+    res.status(200).json({
+      status: "success",
+      message: `Validated ${result.modifiedCount} contacts`,
+      valid_data: validContacts, // Only valid contacts
+      stats: {
+        matched: result.matchedCount,
+        modified: result.modifiedCount,
+        valid: validCount,
+        invalid: invalidCount
+      }
+    });
+
+  } catch (error) {
+    console.error('Validation error:', error);
+    res.status(500).json({
+      status: "error",
+      error: error.message,
+      suggestion: "If this fails due to memory limits, use the batched version"
+    });
+  }
+};
+
+// Add this new method to your contact.controller.js
+exports.getPhoneNumbersInChunks = async (req, res) => {
+  try {
+    // 1. Get all contacts from the database
+    const contacts = await Contact.find({});
+    
+    // 2. Extract phone numbers and filter out empty/null values
+    const phoneNumbers = contacts
+      .map(contact => contact.phone)
+      .filter(phone => phone && phone.trim() !== '');
+    
+    // 3. Split into chunks of 10 numbers each
+    const chunkSize = 10;
+    const chunkedPhoneNumbers = [];
+    
+    for (let i = 0; i < phoneNumbers.length; i += chunkSize) {
+      const chunk = phoneNumbers.slice(i, i + chunkSize);
+      chunkedPhoneNumbers.push(chunk);
+    }
+    
+    // 4. Return the chunked phone numbers
+    res.status(200).json({
+      status_code: 200,
+      message: "Phone numbers retrieved and chunked successfully",
+      data: chunkedPhoneNumbers,
+      total_numbers: phoneNumbers.length,
+      total_chunks: chunkedPhoneNumbers.length
+    });
+    
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({
+      status_code: 500,
+      message: "Error retrieving phone numbers",
+      error: error.message
+    });
+  }
 };
 
 exports.update = (req, res) => {
-
   const id = req.params.id;
+  const updateData = req.body;
 
-  Contact.findByIdAndUpdate(id, req.body, { useFindAndModify: false })
+  // If status is being changed to Followup, add current date/time
+  if (updateData.lead_status === 'Followup') {
+    if (!updateData.followup_date) {
+      updateData.followup_date = new Date();
+    }
+    if (!updateData.followup_time) {
+      updateData.followup_time = moment().tz('Asia/Kolkata').format('HH:mm:ss');
+    }
+  }
+
+  Contact.findByIdAndUpdate(id, updateData, { useFindAndModify: false, new: true })
     .then(data => {
       if (!data) {
         res.status(404).json({ status_code: 404, message: `Cannot update Contact with id=${id}. Maybe Contact was not found!` });
       } else {
-        res.status(200).json({ status_code: 200, message: "Contact was updated successfully" });
+        res.status(200).json({ status_code: 200, message: "Contact was updated successfully", data: data });
       }
     })
     .catch(err => {
@@ -236,13 +386,22 @@ exports.update = (req, res) => {
     });
 };
 
+
 exports.updateBulk = (req, res) => {
-  const ids = req.body.ids; // Assuming the request body contains an array of IDs to update
-  const updateData = req.body.updateData; // Assuming the request body contains the update data for the contacts
-  console.log("ids :: ", ids)
+  const ids = req.body.ids;
+  const updateData = req.body.updateData;
+
+  // If status is being changed to Followup, add current date/time
+ if (updateData.lead_status === 'Followup') {
+    if (!updateData.followup_date) {
+      updateData.followup_date = new Date();
+    }
+    if (!updateData.followup_time) {
+      updateData.followup_time = moment().tz('Asia/Kolkata').format('HH:mm:ss');
+    }
+  }
   Contact.updateMany({ _id: { $in: ids } }, updateData, { useFindAndModify: false })
     .then(data => {
-      console.log(data)
       if (data.modifiedCount > 0) {
         res.status(200).json({ status_code: 200, message: "Contacts were updated successfully", updatedIds: ids });
       } else {
@@ -407,5 +566,180 @@ exports.sendMessageToUser = async (req, res) => {
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ status_code: 500, message: "Internal Server Error" });
+  }
+};
+
+exports.sendLeadDetailsToStaff = async (req, res) => {
+  console.log("Request received:",req.body)
+  try {
+    const { contact_ids } = req.body;
+
+    if (!contact_ids || !Array.isArray(contact_ids)) {
+      return res.status(400).json({ message: "Invalid contact_ids provided" });
+    }
+
+    for (const id of contact_ids) {
+      const lead = await Contact.findById(id);
+      if (lead && lead.assignee) {
+        const staff = await User.findOne({ name: lead.assignee });
+        if (staff && staff.phone_number) {
+          await LeadNotificationToStaff(
+            staff.name,
+            staff.phone_number,
+            lead.fullname,
+            lead.email,
+            lead.phone,
+            lead.courses
+          );
+        }
+      }
+    }
+
+    res.status(200).json({ message: 'Lead details sent to respective staff successfully.' });
+  } catch (err) {
+    console.error('Error sending lead details:', err);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+  
+};
+
+exports.addComment = async (req, res) => {
+  try {
+    const contactId = req.params.id;  // Get contact ID from URL
+    const { texts, createdBy } = req.body;  // Get comment data and creator's name
+
+    // Validate input
+    if (!texts) {
+      return res.status(400).json({ message: "Comment text is required" });
+    }
+
+    // Add the new comment with creator's name and timestamp
+    const updatedContact = await Contact.findByIdAndUpdate(
+      contactId,
+      {
+        $push: {
+          comments: {
+            texts,
+            createdBy: createdBy || 'Anonymous',  // Use provided name or default to 'Anonymous'
+            // createdAt is added automatically
+          }
+        }
+      },
+      { new: true }  // Return the updated document
+    );
+
+    res.status(200).json({
+      message: "Comment added successfully",
+      comments: updatedContact.comments
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Error adding comment" });
+  }
+};
+
+exports.getComments = async (req, res) => {
+  try {
+    const contact = await Contact.findById(req.params.id);
+    if (!contact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+    // Sort comments in memory (newest first)
+    const sortedComments = contact.comments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    res.status(200).json({
+      message: "Comments retrieved successfully",
+      comments: sortedComments
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Error retrieving comments" });
+  }
+};
+
+exports.markAsRegistered = async (req, res) => {
+  try {
+    // First find the contact to check its current status
+    const contact = await Contact.findById(req.params.id);
+    
+    if (!contact) {
+      return res.status(404).json({
+        status_code: 404,
+        message: "Lead not found."
+      });
+    }
+
+    // Check if lead status is "Finalized"
+    if (contact.lead_status !== 'Finalized') {
+      return res.status(400).json({
+        status_code: 400,
+        message: "Only leads with 'Finalized' status can be marked as registered."
+      });
+    }
+
+    // If status is Finalized, proceed with marking as registered
+    const updatedContact = await Contact.findByIdAndUpdate(
+      req.params.id,
+      {
+        isRegistered: 1,
+      },
+      { new: true }
+    );
+
+    res.status(200).json({
+      status_code: 200,
+      message: "Lead marked as registered.",
+      data: updatedContact
+    });
+  } catch (err) {
+    res.status(500).json({
+      status_code: 500,
+      message: "Failed to update lead status."
+    });
+  }
+};
+
+exports.filterByRegistrationStatus = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.body;
+    const skip = (page - 1) * limit;
+    const isStaff = req.user?.userType === 'staff';
+    
+    // Base query for registered leads
+    const query = { isRegistered: 1 };
+
+    // If staff is requesting, only show their assigned registered leads
+    if (isStaff) {
+      const staff = await User.findById(req.user.userId);
+      if (!staff) {
+        return res.status(404).json({
+          status_code: 404,
+          message: "Staff user not found."
+        });
+      }
+      query.$or = [
+        { assignee: staff.name },
+        { assignee: staff.username }
+      ];
+    }
+
+    const total = await Contact.countDocuments(query);
+    const leads = await Contact.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({
+      status_code: 200,
+      message: "Registered leads retrieved successfully.",
+      data: leads,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalLeads: total
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      status_code: 500,
+      message: "Failed to filter leads."
+    });
   }
 };
