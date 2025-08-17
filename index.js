@@ -50,6 +50,7 @@ require("./app/routes/career-list.routes.js")(app);
 require("./app/routes/placement.routes.js")(app);
 require("./app/routes/facebook.routes.js")(app);
 require("./app/routes/templates.routes.js")(app);
+require("./app/routes/dashboard.routes.js")(app);
 
 
 // set port, listen for requests
