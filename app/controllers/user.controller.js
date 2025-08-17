@@ -24,6 +24,48 @@ const excelDateToJSDate = (serial) => {
   return date_info.toISOString().split("T")[0];
 };
 
+// dedicated userupdate API (id comes in body)
+// controllers/user.controller.js
+exports.userupdate = (req, res) => {
+  console.log(" userupdate API hit with body:", req.body);
+
+  const { id, totalAmount, perInstallmentAmount } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ message: "id is required" });
+  }
+
+  User.findByIdAndUpdate(
+    id,
+    { totalAmount, perInstallmentAmount },
+    { new: true }
+  )
+    .then(data => {
+      if (!data) {
+        console.log("⚠️ No user found for id:", id);
+        res.status(404).json({
+          status_code: 404,
+          message: `Cannot update User with id=${id}. Maybe User was not found!`
+        });
+      } else {
+        console.log("✅ User updated successfully:", data);
+        res.status(200).json({
+          status_code: 200,
+          message: "User was updated successfully",
+          data
+        });
+      }
+    })
+    .catch(err => {
+      console.error("❌ Error while updating user:", err.message);
+      res.status(500).json({
+        status_code: 500,
+        message: "Error updating User with id=" + id,
+        error: err.message
+      });
+    });
+};
+
 exports.excelupload = async (req, res) => {
   try {
     if (!req.file) {
@@ -578,3 +620,7 @@ exports.findAllActive = (req, res) => {
       res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving active user" });
     });
 };
+
+//updateinsrallments
+
+

@@ -1,65 +1,64 @@
 module.exports = app => {
-    const users = require("../controllers/user.controller.js");
-    const { authenticateToken } = require('../utils/auth.utils.js');
-    var router = require("express").Router();
-    const multer = require("multer"); // Import multer
-    const storage = multer.memoryStorage();
-    const upload = multer({ storage: storage }); // Define upload
+  const users = require("../controllers/user.controller.js");
+  const { authenticateToken } = require('../utils/auth.utils.js');
+  const router = require("express").Router();
+  const multer = require("multer"); // Import multer
+  const storage = multer.memoryStorage();
+  const upload = multer({ storage: storage }); // Define upload
 
-    // Create a new Tutorial
-    router.post("/", users.create);
+  /**
+   * ORDER MATTERS 🚨
+   * Put specific routes first, generic /:id routes last
+   */
 
+  // ✅ Update user installments or amounts (your custom update API)
 
-    //excelupload
-     router.post("/bulkupload", authenticateToken,upload.single("file"),users.excelupload);
-   // router.post("/bulkupload",upload.single("file"),users.excelupload);
+  // Create a new User
+  router.post("/", users.create);
 
-   router.post("/bulkwhatsmes",authenticateToken,users.bulkExcelMes);
-      //  router.post("/bulkwhatsmes",users.bulkExcelMes);
+  // Excel upload
+  router.post(
+    "/bulkupload",
+    authenticateToken,
+    upload.single("file"),
+    users.excelupload
+  );
 
-    router.get("/getall",authenticateToken,users.allcontacts);
-    //retrieve 
-    router.post("/filtercontact",users.filtercontact);
-    // router.post("/filtercontact",users.filtercontact);
+  // Bulk WhatsApp messages
+  router.post("/bulkwhatsmes", authenticateToken, users.bulkExcelMes);
 
+  // Get all contacts
+  router.get("/getall", authenticateToken, users.allcontacts);
 
-    router.delete("/deletecontact/:id", users.deletecontact);
+  // Filter contacts
+  router.post("/filtercontact", users.filtercontact);
 
+  // Delete contact
+  router.delete("/deletecontact/:id", users.deletecontact);
 
-    // Retrieve all Tutorials
-    router.post("/login", users.login); 
-  
-    // Retrieve all Tutorials
-    // router.get("/", authenticateToken, users.findAll)
+  // Login
+  router.post("/login", users.login);
 
-    router.get("/", users.findAll);
+  // Get all users
+  router.get("/", users.findAll);
 
-  
-    // Retrieve all published Tutorials
-    router.get("/active", users.findAllActive);
+  // Get active users
+  router.get("/active", users.findAllActive);
 
-    // Retrieve all published Tutorials
-    router.post("/all", authenticateToken, users.findAllPost);
-  
-    // Retrieve a single Tutorial with id
-    router.get("/:id", users.findOne);
-  
-    // Update a Tutorial with id
-    router.post("/:id", users.update);
-  
-    // Delete a Tutorial with id
-    router.delete("/:id", users.delete);
-  
-    // Delete all Tutorials
-    router.delete("/", users.deleteAll);
+  // Get all posts
+  router.post("/all", authenticateToken, users.findAllPost);
 
+  /**
+   * GENERIC ID ROUTES 🚨
+   * Keep them at the very bottom so they don’t catch "userupdate"
+   */
+  router.get("/:id", users.findOne);
+  router.post("/:id", users.update);
+  router.delete("/:id", users.delete);
 
+  // Delete all Users
+  router.delete("/", users.deleteAll);
 
-
-    
-
-
-
-  
-    app.use('/api/v1/users', router);
-  };
+  // Mount router
+  app.use('/api/v1/users', router);
+};
