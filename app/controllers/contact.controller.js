@@ -28,6 +28,16 @@ exports.create = async (req, res) => {
       return res.status(400).json({ status_code: 400, message: "Phone number must be a string." });
     }
     if (req.body.phone) {
+      const existingContact = await Contact.findOne({ phone: req.body.phone });
+      if (existingContact) {
+        return res.status(409).json({ 
+          status_code: 409, 
+          message: "User with this phone number already exists!" 
+        });
+      }
+    }
+    
+    if (req.body.phone) {
   // Get country from request or geo lookup
   const countryName = req.body.country; 
 
