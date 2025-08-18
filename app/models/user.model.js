@@ -17,7 +17,7 @@ module.exports = mongoose => {
           totalAmount: Number,
           pendingAmount: Number,
           pendingInstallments: Number,
-          perInstallmentAmount:  Number,
+          noofinstallment:  Number,
           userType: { type: String, enum: ['normal', 'staff', 'admin'], default: 'normal' }, // Add userType field
         },
         { timestamps: true }
