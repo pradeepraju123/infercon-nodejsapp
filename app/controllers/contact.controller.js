@@ -26,6 +26,16 @@ exports.create = async (req, res) => {
     if (req.body.phone && typeof req.body.phone !== 'string') {
       return res.status(400).json({ status_code: 400, message: "Phone number must be a string." });
     }
+    if (req.body.phone) {
+      const existingContact = await Contact.findOne({ phone: req.body.phone });
+      if (existingContact) {
+        return res.status(409).json({ 
+          status_code: 409, 
+          message: "User with this phone number already exists!" 
+        });
+      }
+    }
+    
      // Validate mobile (if provided)
     //  if (req.body.course && typeof req.body.course !== 'string') {
     //     return res.status(400).json({ status_code: 400, message: "Course must be a string." });

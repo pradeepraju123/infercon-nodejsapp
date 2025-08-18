@@ -23,6 +23,7 @@ module.exports = mongoose => {
           is_call: { type: String, enum: ['yes', 'no'], default: 'no' },
           is_mail: { type: String, enum: ['yes', 'no'], default: 'no' },
           is_fee: { type: String, enum: ['yes', 'no'], default: 'no' },
+          isRegistered: { type: Boolean, default: false },
           languages: [],
           additional_details: String,
           city: String,
@@ -38,6 +39,7 @@ module.exports = mongoose => {
           }]
 
         },
+        
         { timestamps: true }
       )
     );
