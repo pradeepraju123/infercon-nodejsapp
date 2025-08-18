@@ -5,6 +5,12 @@ const { createWhatsappMessage,createNotificationMessage, sendWhatsappMessageToUs
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
+// app/controllers/template.controller.js
+exports.installmentsvalue = (req, res) => {
+  console.log("✅ installmentsvalue API hit with body:", req.body);
+  return res.json({ message: "Route is working!", body: req.body });
+};
+
 
 exports.create = async (req, res) => {
   try {

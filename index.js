@@ -31,7 +31,7 @@ db.mongoose
     process.exit();
   });
 
-// simple route
+// simple route/Users/trstscore/Nanthini/pythonworks/infercon-nodejsapp/app/controllers/installment.controller.js
 app.get("/",async (req, res) => {
   res.json({ message: "Welcome to Infercon." });
 });
@@ -50,6 +50,8 @@ require("./app/routes/career-list.routes.js")(app);
 require("./app/routes/placement.routes.js")(app);
 require("./app/routes/facebook.routes.js")(app);
 require("./app/routes/templates.routes.js")(app);
+require("./app/routes/installment.routes.js")(app);
+
 require("./app/routes/dashboard.routes.js")(app);
 
 

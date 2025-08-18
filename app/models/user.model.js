@@ -14,6 +14,10 @@ module.exports = mongoose => {
           active: Boolean,
           active: { type: Boolean, default: true },
           preferences: String,
+          totalAmount: Number,
+          pendingAmount: Number,
+          pendingInstallments: Number,
+          noofinstallment:  Number,
           userType: { type: String, enum: ['normal', 'staff', 'admin'], default: 'normal' }, // Add userType field
         },
         { timestamps: true }

@@ -24,6 +24,9 @@ const excelDateToJSDate = (serial) => {
   return date_info.toISOString().split("T")[0];
 };
 
+// dedicated userupdate API (id comes in body)
+// controllers/user.controller.js
+
 exports.excelupload = async (req, res) => {
   try {
     if (!req.file) {
@@ -578,3 +581,7 @@ exports.findAllActive = (req, res) => {
       res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while retrieving active user" });
     });
 };
+
+//updateinsrallments
+
+
