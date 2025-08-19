@@ -28,28 +28,15 @@ exports.create = async (req, res) => {
       return res.status(400).json({ status_code: 400, message: "Phone number must be a string." });
     }
     if (req.body.phone) {
-  // Get country from request or geo lookup
-  const countryName = req.body.country; 
-
-  if (!countryName) {
-    return res.status(400).json({ 
-      status_code: 400, 
-      message: "Could not determine country for phone validation." 
-    });
-  }
-
-  const validation = validatePhoneNumber(countryName, req.body.phone);
-  
-  if (!validation.valid) {
-    return res.status(400).json({ 
-      status_code: 400, 
-      message: validation.message 
-    });
-  }
-  
-  // Optionally, update phone format if needed
-  req.body.phone = validation.formattedNumber;
-}
+      const existingContact = await Contact.findOne({ phone: req.body.phone });
+      if (existingContact) {
+        return res.status(409).json({ 
+          status_code: 409, 
+          message: "User with this phone number already exists!" 
+        });
+      }
+    }
+    
      // Validate mobile (if provided)
     //  if (req.body.course && typeof req.body.course !== 'string') {
     //     return res.status(400).json({ status_code: 400, message: "Course must be a string." });
@@ -135,7 +122,7 @@ exports.create = async (req, res) => {
       }
     
     console.log(staff_mobile)
-    
+    // const createdBy = req.user ? req.user.username || req.user.name : 'System';
     // Create a Training with event_details and systems_used
     const contact = new Contact({
       fullname: req.body.fullname,
@@ -149,9 +136,12 @@ exports.create = async (req, res) => {
       // city : cityName,
       state : req.body.state,
       country : req.body.country,
-      assignee : assignee
+      assignee : assignee,
+      // createdBy: createdBy
 
     });
+    console.log('req.user:', req.user);
+console.log('req.headers:', req.headers);
   // Save the training data
   contact.save()
     .then(data => {
@@ -230,12 +220,25 @@ exports.getAll = async (req, res) => {
       .skip(skip)
       .limit(limit);
     // Process the result to extract date and time from createdAt
-    const formattedData = data.map(item => {
+    const formattedData = data.map( item => {
       const createdAt = moment(item.createdAt).tz('Asia/Kolkata');
+      createdById = item.createdBy
+      console.log(createdById)
+      array_user = ['System', 'soniaj']
+      created_by_name = 'System'
+      if(!array_user.includes(createdById)){
+        user_data = User.findById(createdById)
+        created_by_name = user_data.name
+        console.log('it comes here')
+        console.log('user name :: ', created_by_name)
+      }
+
       return {
         ...item._doc,
         created_date: createdAt.format('YYYY-MM-DD'),
-        created_time: createdAt.format('HH:mm:ss')
+        created_time: createdAt.format('HH:mm:ss'),
+        created_by : created_by_name
+      
       };
     });
     res.status(200).json({
@@ -698,13 +701,14 @@ exports.markAsRegistered = async (req, res) => {
 
 exports.filterByRegistrationStatus = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.body;
+    // Extract pagination parameters with defaults
+    const { page_num = 1, page_size = 10 } = req.body;
+    const page = parseInt(page_num);
+    const limit = parseInt(page_size);
     const skip = (page - 1) * limit;
     const isStaff = req.user?.userType === 'staff';
-    
     // Base query for registered leads
     const query = { isRegistered: 1 };
-
     // If staff is requesting, only show their assigned registered leads
     if (isStaff) {
       const staff = await User.findById(req.user.userId);
@@ -719,27 +723,199 @@ exports.filterByRegistrationStatus = async (req, res) => {
         { assignee: staff.username }
       ];
     }
-
+    // Get total count and paginated results
     const total = await Contact.countDocuments(query);
     const leads = await Contact.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
-
+    // Format dates for each lead
+    const formattedLeads = leads.map(lead => {
+      const createdAt = moment(lead.createdAt).tz('Asia/Kolkata');
+      return {
+        ...lead._doc,
+        created_date: createdAt.format('YYYY-MM-DD'),
+        created_time: createdAt.format('HH:mm:ss')
+      };
+    });
     res.status(200).json({
       status_code: 200,
       message: "Registered leads retrieved successfully.",
-      data: leads,
+      data: formattedLeads,
       pagination: {
-        currentPage: page,
-        totalPages: Math.ceil(total / limit),
-        totalLeads: total
+        current_page: page,
+        total_pages: Math.ceil(total / limit),
+        total_items: total,
+        items_per_page: limit
       }
     });
   } catch (err) {
+    console.error('Error in filterByRegistrationStatus:', err);
     res.status(500).json({
       status_code: 500,
       message: "Failed to filter leads."
     });
   }
 };
+
+exports.createwithcreator= async (req, res) => {
+    // Validate request
+    if (!req.body.fullname) {
+      return res.status(400).json({ status_code: 400, message: "Name can not be empty!" });
+    }
+    if (typeof req.body.fullname !== 'string') {
+      return res.status(400).json({ status_code: 400, message: "Name must be a string." });
+    }
+    // Validate description (if provided)
+    if (req.body.email && typeof req.body.email !== 'string') {
+      return res.status(400).json({ status_code: 400, message: "Email must be a string." });
+    }
+  
+    // Validate mobile (if provided)
+    if (req.body.phone && typeof req.body.phone !== 'string') {
+      return res.status(400).json({ status_code: 400, message: "Phone number must be a string." });
+    }
+    if (req.body.phone) {
+      const existingContact = await Contact.findOne({ phone: req.body.phone });
+      if (existingContact) {
+        return res.status(409).json({ 
+          status_code: 409, 
+          message: "User with this phone number already exists!" 
+        });
+      }
+    }
+    
+     // Validate mobile (if provided)
+    //  if (req.body.course && typeof req.body.course !== 'string') {
+    //     return res.status(400).json({ status_code: 400, message: "Course must be a string." });
+    //   }
+       // Validate mobile (if provided)
+    if (req.body.message && typeof req.body.message !== 'string') {
+        return res.status(400).json({ status_code: 400, message: "Message must be a string." });
+      }
+      const fetch = require('node-fetch');
+      let stateName = '';
+      let countryName = '';
+      let cityName = '';
+      let assignee = '';
+      let staff_mobile = '';
+    
+      try {
+        const response = await fetch("https://api.geoapify.com/v1/ipinfo?&apiKey=aa33e979ca2246e2bc742ee17d74ad7a");
+        const result = await response.json();
+        
+        const stateName = req.body.state || result.state.name;
+        const cityName = result.city.name;
+        const countryName = req.body.country || result.country.name;
+        console.log("State name:", stateName);
+        console.log("City name:", cityName);
+        console.log("Country name:", countryName);
+      } catch (error) {
+        console.log('error', error);
+      }
+      let condition = {}
+      if (typeof stateName === 'string' && typeof countryName === 'string') {
+        let normalizedState = stateName.toLowerCase();
+        let normalizedCountry = countryName.toLowerCase();
+      
+        // Fetch all users from the database
+        User.find()
+          .then(users => {
+            console.log("users :: ", users);
+            if (users && users.length > 0) {
+              let foundMatch = false; // Flag to track if a match is found
+      
+              for (let user of users) {
+                console.log("each user :: ", user.name);
+                if (user.preferences) {
+                  console.log('it comes here');
+                  let preferences = user.preferences.toLowerCase();
+                  console.log(preferences);
+                  console.log(normalizedState);
+                  console.log(normalizedCountry);
+      
+                  // Map the state to the region based on the user's preferences
+                  if (preferences === 'south_india' && LocationMap.south_india.map(state => state.toLowerCase()).includes(normalizedState)) {
+                    console.log(`Assigning to ${user.name}`);
+                    assignee = user.name
+                    staff_mobile = user.phone_number
+                    foundMatch = true; // Match found
+                    break; // Exit loop
+                  } else if (preferences === 'north_india' && LocationMap.north_india.map(state => state.toLowerCase()).includes(normalizedState)) {
+                    console.log(`Assigning to ${user.name}`);
+                    assignee = user.name
+                    staff_mobile = user.phone_number
+                    foundMatch = true;
+                    break; // Exit loop
+                  } else if (preferences === 'international' && normalizedCountry !== 'india') {
+                    console.log(`Assigning to ${user.name}`);
+                    assignee = user.name
+                    staff_mobile = user.phone_number
+                    foundMatch = true;
+                    break; // Exit loop
+                  }
+                }
+              }
+      
+              if (!foundMatch) {
+                console.log("No match found for any user based on their preferences and location");
+              }
+            } else {
+              console.log("No users found in the database");
+            }
+          })
+          .catch(error => {
+            console.log("Error fetching users:", error);
+          });
+      }
+    
+    console.log(staff_mobile)
+    const createdBy = req.user ? req.user.userName || req.user.userId : 'System';
+    console.log("createdby:",createdBy)
+    // Create a Training with event_details and systems_used
+    const contact = new Contact({
+      fullname: req.body.fullname,
+      email: req.body.email,
+      phone: req.body.phone,
+      courses: req.body.courses,
+      message: req.body.message,
+      lead_status: req.body.lead_status,
+      source : req.body.source,
+      additional_details : req.body.additional_details,
+      // city : cityName,
+      state : req.body.state,
+      country : req.body.country,
+      assignee : assignee,
+      createdBy: createdBy
+
+    });
+    console.log('req.user:', req.user);
+console.log('req.headers:', req.headers);
+  // Save the training data
+  contact.save()
+    .then(data => {
+      console.log("✅ Data saved to MongoDB:", data);
+        createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message, data.source, data.additional_details);
+        if (staff_mobile){
+          console.log(staff_mobile)
+           LeadNotificationToStaff(assignee,staff_mobile, data.fullname, data.email, data.phone, data.course)
+        }
+        
+      res.status(201).json({ status_code: 201, message: "Contact created successfully", data: data });
+    })
+    .catch(err => {
+       console.error("❌ MongoDB Save Error:", err);
+      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while Generating query." });
+    });
+    };
+
+
+async function getUserName(createdById) {
+  try {
+    const user = await User.findById(createdById);
+    console.log(user.name); // access name here
+    return user.name;
+  } catch (err) {
+    console.error(err);
+  }
+}

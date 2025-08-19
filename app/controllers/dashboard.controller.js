@@ -1,46 +1,93 @@
 const db = require("../models");
 const Contact = db.contact;
 const moment = require("moment-timezone");
-
+const User=db.users
 
 
 // Dashboard API: fetch upcoming followups + new enrollments
 exports.getDashboardData = async (req, res) => {
   try {
-    const now = moment().startOf('day'); 
-    const twoDaysAgo = moment().subtract(2, 'days').startOf('day');
+    const { followupPage = 1, followupLimit = 10, enrollmentsPage = 1, enrollmentsLimit = 10 } = req.query;
+    
+    const now = moment().tz('Asia/Kolkata').startOf('day');
+    const twoDaysAgo = moment().tz('Asia/Kolkata').subtract(2, 'days').startOf('day');
+    
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({
+        status_code: 404,
+        message: "User not found."
+      });
+    }
 
-    // Only upcoming followups (today or future)
-    const followupLeads = await Contact.find({
+    const isAdmin = user.userType === 'admin';
+
+    // Followup query condition
+    const followupCondition = {
       lead_status: "Followup",
-      followup_date: { $gte: now.toDate() }   // only today and later
-    })
-      .sort({ followup_date: 1, followup_time: 1 })
-      .limit(10);
-
-       // Format the time before sending response
-    const formattedFollowups = followupLeads.map(lead => ({
-      ...lead._doc,
-      followup_time: lead.followup_time 
-    }));
-
-    // New Enrollments (last 10)
-    const newEnrollments = await Contact.find({
-  lead_status: "New lead",
-  createdAt: { $gte: twoDaysAgo.toDate() }
-})
-  .sort({ createdAt: -1 })
-  .limit(10);
-
-     const stats = {
-      totalLeads: await Contact.countDocuments({}),
-      registeredLeads: await Contact.countDocuments({ isRegistered: 1 }),
-      // Using is_fee field instead of paymentStatus
-      paidLeads: await Contact.countDocuments({ is_fee: "yes" }),
-      rejectedLeads: await Contact.countDocuments({ lead_status: "Not interested" })
+      followup_date: { $gte: now.toDate() }
     };
 
-    console.log('Training Stats:', stats)
+    // New enrollments query condition
+    const newEnrollmentsCondition = {
+      lead_status: "New lead",
+      createdAt: { $gte: twoDaysAgo.toDate() }
+    };
+
+    if (!isAdmin) {
+      followupCondition.$or = [
+        { assignee: user.name },
+        { assignee: user.username }
+      ];
+      newEnrollmentsCondition.$or = [
+        { assignee: user.name },
+        { assignee: user.username }
+      ];
+    }
+
+    // Calculate skip values for pagination
+    const followupSkip = (followupPage - 1) * followupLimit;
+    const enrollmentsSkip = (enrollmentsPage - 1) * enrollmentsLimit;
+
+    // Get total counts for pagination metadata
+    const totalFollowups = await Contact.countDocuments(followupCondition);
+    const totalEnrollments = await Contact.countDocuments(newEnrollmentsCondition);
+
+    // Upcoming followups with pag-ination
+    const followupLeads = await Contact.find(followupCondition)
+      .sort({ followup_date: 1, followup_time: 1 })
+      .skip(followupSkip)
+      .limit(parseInt(followupLimit));
+
+    // New Enrollments with pagination
+    const newEnrollments = await Contact.find(newEnrollmentsCondition)
+      .sort({ createdAt: -1 })
+      .skip(enrollmentsSkip)
+      .limit(parseInt(enrollmentsLimit));
+
+    // Stats condition
+    const statsCondition = isAdmin ? {} : {
+      $or: [
+        { assignee: user.name },
+        { assignee: user.username }
+      ]
+    };
+
+    const stats = {
+      totalLeads: await Contact.countDocuments(statsCondition),
+      registeredLeads: await Contact.countDocuments({ 
+        ...statsCondition,
+        isRegistered: 1 
+      }),
+      paidLeads: await Contact.countDocuments({ 
+        ...statsCondition,
+        is_fee: "yes" 
+      }),
+      rejectedLeads: await Contact.countDocuments({ 
+        ...statsCondition,
+        lead_status: "Not interested" 
+      })
+    };
 
     res.status(200).json({
       status_code: 200,
@@ -48,7 +95,21 @@ exports.getDashboardData = async (req, res) => {
       data: {
         followupLeads,
         newEnrollments,
-        trainingStats: stats 
+        trainingStats: stats,
+        pagination: {
+          followups: {
+            total: totalFollowups,
+            page: parseInt(followupPage),
+            limit: parseInt(followupLimit),
+            pages: Math.ceil(totalFollowups / followupLimit)
+          },
+          enrollments: {
+            total: totalEnrollments,
+            page: parseInt(enrollmentsPage),
+            limit: parseInt(enrollmentsLimit),
+            pages: Math.ceil(totalEnrollments / enrollmentsLimit)
+          }
+        }
       }
     });
   } catch (err) {

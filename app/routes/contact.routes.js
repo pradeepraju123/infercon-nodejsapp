@@ -5,6 +5,7 @@ module.exports = app => {
   
     // Create a new Tutorial
     router.post("/", contact.create);
+    router.post("/create-with-creator", authenticateToken, contact.createwithcreator);
     // Retrieve all Tutorials
     router.post("/get", authenticateToken, contact.getAll);
      // Download contact details
