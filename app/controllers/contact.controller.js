@@ -583,13 +583,14 @@ exports.markAsRegistered = async (req, res) => {
 
 exports.filterByRegistrationStatus = async (req, res) => {
   try {
-    const { page = 1, limit = 10 } = req.body;
+    // Extract pagination parameters with defaults
+    const { page_num = 1, page_size = 10 } = req.body;
+    const page = parseInt(page_num);
+    const limit = parseInt(page_size);
     const skip = (page - 1) * limit;
     const isStaff = req.user?.userType === 'staff';
-    
     // Base query for registered leads
     const query = { isRegistered: 1 };
-
     // If staff is requesting, only show their assigned registered leads
     if (isStaff) {
       const staff = await User.findById(req.user.userId);
@@ -604,27 +605,46 @@ exports.filterByRegistrationStatus = async (req, res) => {
         { assignee: staff.username }
       ];
     }
-
+    // Get total count and paginated results
     const total = await Contact.countDocuments(query);
     const leads = await Contact.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
-
+    // Format dates for each lead
+    const formattedLeads = leads.map(lead => {
+      const createdAt = moment(lead.createdAt).tz('Asia/Kolkata');
+      return {
+        ...lead._doc,
+        created_date: createdAt.format('YYYY-MM-DD'),
+        created_time: createdAt.format('HH:mm:ss')
+      };
+    });
     res.status(200).json({
       status_code: 200,
       message: "Registered leads retrieved successfully.",
-      data: leads,
+      data: formattedLeads,
       pagination: {
-        currentPage: page,
-        totalPages: Math.ceil(total / limit),
-        totalLeads: total
+        current_page: page,
+        total_pages: Math.ceil(total / limit),
+        total_items: total,
+        items_per_page: limit
       }
     });
   } catch (err) {
+    console.error('Error in filterByRegistrationStatus:', err);
     res.status(500).json({
       status_code: 500,
       message: "Failed to filter leads."
     });
   }
 };
+
+
+
+
+
+
+
+
+
