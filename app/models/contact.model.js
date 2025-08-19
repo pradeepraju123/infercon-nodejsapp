@@ -36,7 +36,11 @@ module.exports = mongoose => {
               type:Date,
               default:Date.now
             }
-          }]
+          }],
+          createdBy: {
+          type: String,
+          default: 'System' // Default value if not specified
+        },
 
         },
         

@@ -5,6 +5,10 @@ module.exports = app => {
   
     // Create a new Tutorial
     router.post("/", registration.create);
+
+    router.post('/installment/setup', registration.setupInstallmentPlan);
+router.post('/installment/pay', registration.payInstallment);
+router.get('/installment/details/:contactId', registration.getInstallmentDetails);
   
     app.use('/api/v1/registration', router);
   };
