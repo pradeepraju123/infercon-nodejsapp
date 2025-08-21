@@ -274,7 +274,6 @@ exports.getAllContacts = async (req, res) => {
       if (contact.phone && contact.country) {
         const validation = validatePhoneNumber(contact.country, contact.phone);
         isValid = validation.valid ? 'yes' : 'no';
-        
         // Count valid/invalid
         if (isValid === 'yes') {
           validCount++;
@@ -285,7 +284,6 @@ exports.getAllContacts = async (req, res) => {
       } else {
         invalidCount++; // Count as invalid if missing phone or country
       }
-      
       return {
         updateOne: {
           filter: { _id: contact._id },
@@ -701,7 +699,6 @@ exports.filterByRegistrationStatus = async (req, res) => {
     const { page = 1, limit = 10 } = req.body;
     const skip = (page - 1) * limit;
     const isStaff = req.user?.userType === 'staff';
-    
     // Base query for registered leads
     const query = { isRegistered: 1 };
 
