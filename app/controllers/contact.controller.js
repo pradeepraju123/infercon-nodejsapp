@@ -404,7 +404,7 @@ exports.sendnotification = async (req, res) => {
     let condition = {};
     if (fullname) {
       // Adjust the condition object for findOne
-      condition = { username: fullname }; // Assuming 'fullname' is a field in your Contact schema
+      condition = { username: fullname }; 
     }
 
     // Fetch data from the database based on the condition
@@ -412,8 +412,8 @@ exports.sendnotification = async (req, res) => {
     // Check if a contact is found
     if (user) {
       // Get the contact number
-      const contactNumber = user.phone_number; // Assuming 'mobile' is a field in your Contact schema
-      // If the contact number length is 10, append '91' to the front
+      const contactNumber = user.phone_number; 
+      
       if (contactNumber.length === 10) {
         contactNumber = '91' + contactNumber;
       }
@@ -445,7 +445,7 @@ exports.sendMessageToUser = async (req, res) => {
       // Check if a contact is found
       if (user) {
         // Get the contact number
-        let contactNumber = user.phone; // Assuming 'phone' is a field in your Contact schema
+        let contactNumber = user.phone; 
 
         // If the contact number length is 10, append '91' to the front
         if (contactNumber.length === 10) {
@@ -699,7 +699,7 @@ exports.createwithcreator = async (req, res) => {
             }
         } else {
             console.log("Creator not found, fallback to geo assignment");
-            // (your geographic fallback logic here – same as before)
+            
         }
         // Save the new contact
         const contact = new Contact({
@@ -727,7 +727,7 @@ exports.createwithcreator = async (req, res) => {
                 `New lead created by ${staffName}: ${data.fullname} (${data.phone}) - ${data.courses.join(', ')}`,
                 'lead_creation',
                 data._id,
-                createdBy // :white_check_mark: Attach who created the lead
+                createdBy 
             );
         }
         res.status(201).json({ status_code: 201, message: "Contact created successfully", data });
@@ -773,11 +773,11 @@ exports.onAssigneeSelect = async (req, res) => {
     }
     // Create website notification using the utility function
     const notificationMessage = `You have been assigned a new lead: ${updatedContact.fullname} - ${updatedContact.courses} (Phone: ${updatedContact.phone})`;
-    // :white_check_mark: CHANGE 'lead_assignment' to 'assignment' (or another valid enum value)
+    
     await createNotificationDirect(
       staff._id,
       notificationMessage,
-      'assignment', // :white_check_mark: Changed from 'lead_assignment' to 'assignment'
+      'assignment', 
       itemId
     );
     console.log('Website notification created for staff:', staff.name);
@@ -876,7 +876,6 @@ exports.getNonRegisteredContacts = async (req, res) => {
       .skip(skip)
       .limit(limit);
     // Process the result to extract date and time from createdAt
-// Process the result to extract date and time from createdAt
 const formattedData = await Promise.all(data.map(async (item) => {
   const createdAt = moment(item.createdAt).tz('Asia/Kolkata');
   
@@ -893,7 +892,7 @@ const formattedData = await Promise.all(data.map(async (item) => {
         }
       } catch (err) {
         console.error('Error fetching user by ID:', err);
-        created_by_name = item.createdBy; // Fallback to the original value
+        created_by_name = item.createdBy; 
       }
     } else {
       // If it's not an ObjectId, try to find by username or email
