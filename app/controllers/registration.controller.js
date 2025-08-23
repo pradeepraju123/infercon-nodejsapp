@@ -211,201 +211,249 @@ exports.create = (req, res) => {
 //     });
 // };
 
-exports.setupInstallmentPlan = async (req, res) => {
-    try {
-        const { contactId, totalAmount, numberOfInstallments, startDate } = req.body;
+// exports.setupInstallmentPlan = async (req, res) => {
+//     try {
+//         const { contactId, totalAmount, numberOfInstallments, startDate } = req.body;
         
-        // Validate inputs
-        if (!contactId || !totalAmount || !numberOfInstallments) {
-            return res.status(400).json({
-                status_code: 400,
-                message: "contactId, totalAmount, and numberOfInstallments are required"
-            });
-        }
+//         // Validate inputs
+//         if (!contactId || !totalAmount || !numberOfInstallments) {
+//             return res.status(400).json({
+//                 status_code: 400,
+//                 message: "contactId, totalAmount, and numberOfInstallments are required"
+//             });
+//         }
 
-        // Find the contact
-        const contact = await Contact.findById(contactId);
-        if (!contact) {
-            return res.status(404).json({
-                status_code: 404,
-                message: "Contact not found"
-            });
-        }
+//         // Find the contact
+//         const contact = await Contact.findById(contactId);
+//         if (!contact) {
+//             return res.status(404).json({
+//                 status_code: 404,
+//                 message: "Contact not found"
+//             });
+//         }
 
-        // Validate amounts
-        if (totalAmount <= 0 || numberOfInstallments <= 0) {
-            return res.status(400).json({
-                status_code: 400,
-                message: "Amount and installments must be positive numbers"
-            });
-        }
+//         // Validate amounts
+//         if (totalAmount <= 0 || numberOfInstallments <= 0) {
+//             return res.status(400).json({
+//                 status_code: 400,
+//                 message: "Amount and installments must be positive numbers"
+//             });
+//         }
 
-        // Calculate per installment amount
-        const perInstallmentAmount = totalAmount / numberOfInstallments;
-        const installments = [];
-        const today = startDate ? new Date(startDate) : new Date();
-        for (let i = 0; i < numberOfInstallments; i++) {
-            const dueDate = new Date(today);
-            dueDate.setMonth(dueDate.getMonth() + i);
+//         // Calculate per installment amount
+//         const perInstallmentAmount = totalAmount / numberOfInstallments;
+//         const installments = [];
+//         const today = startDate ? new Date(startDate) : new Date();
+//         for (let i = 0; i < numberOfInstallments; i++) {
+//             const dueDate = new Date(today);
+//             dueDate.setMonth(dueDate.getMonth() + i);
             
-            installments.push({
-                amount: perInstallmentAmount,
-                dueDate: dueDate,
-                status: "pending",
-                paymentDate: null
-            });
-        }
-        // Create or update registration with installment plan
-        const registration = await Registration.findOneAndUpdate(
-            { contactRef: contactId },
-            {
-                $set: {
-                    contactRef: contactId,
-                    totalAmount: totalAmount,
-                    pendingAmount: totalAmount,
-                    pendingInstallments: numberOfInstallments,
-                    perInstallmentAmount: perInstallmentAmount,
-                    installments: installments,
-                    overallStatus: "pending",
-                    contactDetails: {
-                        name: contact.fullname,
-                        email: contact.email,
-                        phone: contact.phone
-                    }
-                }
-            },
-            { 
-                upsert: true,
-                new: true 
-            }
-        );
+//             installments.push({
+//                 amount: perInstallmentAmount,
+//                 dueDate: dueDate,
+//                 status: "pending",
+//                 paymentDate: null
+//             });
+//         }
+//         // Create or update registration with installment plan
+//         const registration = await Registration.findOneAndUpdate(
+//             { contactRef: contactId },
+//             {
+//                 $set: {
+//                     contactRef: contactId,
+//                     totalAmount: totalAmount,
+//                     pendingAmount: totalAmount,
+//                     pendingInstallments: numberOfInstallments,
+//                     perInstallmentAmount: perInstallmentAmount,
+//                     installments: installments,
+//                     overallStatus: "pending",
+//                     contactDetails: {
+//                         name: contact.fullname,
+//                         email: contact.email,
+//                         phone: contact.phone
+//                     }
+//                 }
+//             },
+//             { 
+//                 upsert: true,
+//                 new: true 
+//             }
+//         );
 
-        res.status(200).json({
-            status_code: 200,
-            message: "Installment plan created successfully",
-            data: {
-                registration,
-                perInstallmentAmount
-            }
-        });
-    } catch (error) {
-        res.status(500).json({
-            status_code: 500,
-            message: error.message || "Error setting up installment plan"
-        });
-    }
-};
+//         res.status(200).json({
+//             status_code: 200,
+//             message: "Installment plan created successfully",
+//             data: {
+//                 registration,
+//                 perInstallmentAmount
+//             }
+//         });
+//     } catch (error) {
+//         res.status(500).json({
+//             status_code: 500,
+//             message: error.message || "Error setting up installment plan"
+//         });
+//     }
+// };
 
-// Process Installment Payment
-exports.payInstallment = async (req, res) => {
-    try {
-        const { contactId, paidAmount } = req.body;
+// // Process Installment Payment
+// exports.payInstallment = async (req, res) => {
+//     try {
+//         const { contactId, paidAmount } = req.body;
         
-        // Input validation (keep your existing checks)
-        if (!contactId || !paidAmount) {
-            return res.status(400).json({
-                status_code: 400,
-                message: "contactId and paidAmount are required"
-            });
-        }
+//         // Input validation (keep your existing checks)
+//         if (!contactId || !paidAmount) {
+//             return res.status(400).json({
+//                 status_code: 400,
+//                 message: "contactId and paidAmount are required"
+//             });
+//         }
 
-        const registration = await Registration.findOne({ contactRef: contactId });
-        if (!registration) {
-            return res.status(404).json({
-                status_code: 404,
-                message: "No registration found for this contact"
-            });
-        }
+//         const registration = await Registration.findOne({ contactRef: contactId });
+//         if (!registration) {
+//             return res.status(404).json({
+//                 status_code: 404,
+//                 message: "No registration found for this contact"
+//             });
+//         }
 
-        // Find the first pending installment
-        const pendingInstallment = registration.installments.find(
-            inst => inst.status === "pending"
-        );
+//         // Find the first pending installment
+//         const pendingInstallment = registration.installments.find(
+//             inst => inst.status === "pending"
+//         );
 
-        if (!pendingInstallment) {
-            return res.status(400).json({
-                status_code: 400,
-                message: "No pending installments found"
-            });
-        }
+//         if (!pendingInstallment) {
+//             return res.status(400).json({
+//                 status_code: 400,
+//                 message: "No pending installments found"
+//             });
+//         }
 
-        // Calculate updated values
-        const newPendingAmount = registration.pendingAmount - paidAmount;
-        const newPendingInstallments = registration.pendingInstallments - 1;
-        const overallStatus = newPendingAmount <= 0 ? "completed" : "partially_paid";
+//         // Calculate updated values
+//         const newPendingAmount = registration.pendingAmount - paidAmount;
+//         const newPendingInstallments = registration.pendingInstallments - 1;
+//         const overallStatus = newPendingAmount <= 0 ? "completed" : "partially_paid";
 
-        // Update using the installment's index
-        const updateQuery = {
-            $set: {
-                pendingAmount: newPendingAmount,
-                pendingInstallments: newPendingInstallments,
-                lastPaymentAmount: paidAmount,
-                lastPaymentDate: new Date(),
-                overallStatus: overallStatus,
-                [`installments.${registration.installments.indexOf(pendingInstallment)}.status`]: "paid",
-                [`installments.${registration.installments.indexOf(pendingInstallment)}.paymentDate`]: new Date()
-            },
-            $push: {
-                paymentHistory: {
-                    amount: paidAmount,
-                    date: new Date()
-                }
-            }
-        };
+//         // Update using the installment's index
+//         const updateQuery = {
+//             $set: {
+//                 pendingAmount: newPendingAmount,
+//                 pendingInstallments: newPendingInstallments,
+//                 lastPaymentAmount: paidAmount,
+//                 lastPaymentDate: new Date(),
+//                 overallStatus: overallStatus,
+//                 [`installments.${registration.installments.indexOf(pendingInstallment)}.status`]: "paid",
+//                 [`installments.${registration.installments.indexOf(pendingInstallment)}.paymentDate`]: new Date()
+//             },
+//             $push: {
+//                 paymentHistory: {
+//                     amount: paidAmount,
+//                     date: new Date()
+//                 }
+//             }
+//         };
 
-        const updatedRegistration = await Registration.findOneAndUpdate(
-            { contactRef: contactId },
-            updateQuery,
-            { new: true }
-        );
+//         const updatedRegistration = await Registration.findOneAndUpdate(
+//             { contactRef: contactId },
+//             updateQuery,
+//             { new: true }
+//         );
 
-        res.status(200).json({
-            status_code: 200,
-            message: "Installment payment processed",
-            data: {
-                registration: updatedRegistration,
-                remainingAmount: newPendingAmount,
-                remainingInstallments: newPendingInstallments
-            }
-        });
-    } catch (error) {
-        res.status(500).json({
-            status_code: 500,
-            message: error.message || "Error processing installment payment"
-        });
-    }
-};
+//         res.status(200).json({
+//             status_code: 200,
+//             message: "Installment payment processed",
+//             data: {
+//                 registration: updatedRegistration,
+//                 remainingAmount: newPendingAmount,
+//                 remainingInstallments: newPendingInstallments
+//             }
+//         });
+//     } catch (error) {
+//         res.status(500).json({
+//             status_code: 500,
+//             message: error.message || "Error processing installment payment"
+//         });
+//     }
+// };
 
-// Get Installment Details
-exports.getInstallmentDetails = async (req, res) => {
-    try {
-        const { contactId } = req.params;
+// // Get Installment Details
+// exports.getInstallmentDetails = async (req, res) => {
+//     try {
+//         const { contactId } = req.params;
 
-        const registration = await Registration.findOne({ contactRef: contactId });
-        if (!registration) {
-            return res.status(404).json({
-                status_code: 404,
-                message: "No registration found for this contact"
-            });
-        }
+//         const registration = await Registration.findOne({ contactRef: contactId });
+//         if (!registration) {
+//             return res.status(404).json({
+//                 status_code: 404,
+//                 message: "No registration found for this contact"
+//             });
+//         }
 
-        res.status(200).json({
-            status_code: 200,
-            message: "Installment details retrieved",
-            data: {
-                registration,
-                nextPaymentDue: registration.installments.find(i => i.status === "pending")?.amount,
-                totalPaid: registration.totalAmount - registration.pendingAmount,
-                paidInstallments: registration.installments.filter(i => i.status === "paid"),
-                pendingInstallments: registration.installments.filter(i => i.status === "pending"),
-                overallStatus: registration.overallStatus
+//         res.status(200).json({
+//             status_code: 200,
+//             message: "Installment details retrieved",
+//             data: {
+//                 registration,
+//                 nextPaymentDue: registration.installments.find(i => i.status === "pending")?.amount,
+//                 totalPaid: registration.totalAmount - registration.pendingAmount,
+//                 paidInstallments: registration.installments.filter(i => i.status === "paid"),
+//                 pendingInstallments: registration.installments.filter(i => i.status === "pending"),
+//                 overallStatus: registration.overallStatus
 
-            }
-        });
-    } catch (error) {
-        res.status(500).json({
-            status_code: 500,
-            message: error.message || "Error getting installment details"
-        });
-    }
-};
+//             }
+//         });
+//     } catch (error) {
+//         res.status(500).json({
+//             status_code: 500,
+//             message: error.message || "Error getting installment details"
+//         });
+//     }
+// };
+
+
+// exports.getAllAccounts = async (req, res) => {
+//   try {
+//     const { searchTerm, page_size, page_num } = req.query;
+    
+//     const pageSize = parseInt(page_size, 10) || 10;
+//     const pageNum = parseInt(page_num, 10) || 1;
+//     const skip = (pageNum - 1) * pageSize;
+
+//     let condition = {};
+    
+//     // Add search functionality
+//     if (searchTerm) {
+//       condition = {
+//         $or: [
+//           { 'contactDetails.name': { $regex: searchTerm, $options: 'i' } },
+//           { 'contactDetails.email': { $regex: searchTerm, $options: 'i' } },
+//           { 'contactDetails.phone': { $regex: searchTerm, $options: 'i' } }
+//         ]
+//       };
+//     }
+
+//     const accounts = await Registration.find(condition)
+//       .skip(skip)
+//       .limit(pageSize)
+//       .sort({ createdAt: -1 });
+
+//     const totalItems = await Registration.countDocuments(condition);
+
+//     res.status(200).json({
+//       status_code: 200,
+//       message: "Accounts retrieved successfully",
+//       data: accounts,
+//       pagination: {
+//         total_items: totalItems,
+//         total_pages: Math.ceil(totalItems / pageSize),
+//         current_page: pageNum,
+//         items_per_page: pageSize
+//       }
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       status_code: 500,
+//       message: error.message || "Error retrieving accounts"
+//     });
+//   }
+// };

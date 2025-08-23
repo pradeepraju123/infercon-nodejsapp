@@ -7,6 +7,8 @@ const path = require('path');
 const fs = require('fs');
 const exceljs = require('exceljs');
 const moment = require('moment-timezone');
+const mongoose = require('mongoose');
+const { createNotificationDirect } = require('../utils/notification.utils');
 // Create and Save a new Tutorial
 
 exports.create = async (req, res) => {
@@ -139,8 +141,6 @@ exports.create = async (req, res) => {
       // createdBy: createdBy
 
     });
-    console.log('req.user:', req.user);
-console.log('req.headers:', req.headers);
   // Save the training data
   contact.save()
     .then(data => {
@@ -191,7 +191,6 @@ exports.getAll = async (req, res) => {
         { phone: req.user.phone_number } // Or phone matches
       ];
     }
-    // Rest of the function remains the same...
     // Add filtering conditions based on the provided parameters
     if (start_date && end_date) {
       condition.createdAt = {
@@ -656,157 +655,87 @@ exports.filterByRegistrationStatus = async (req, res) => {
   }
 };
 
-exports.createwithcreator= async (req, res) => {
-    // Validate request
-    if (!req.body.fullname) {
-      return res.status(400).json({ status_code: 400, message: "Name can not be empty!" });
-    }
-    if (typeof req.body.fullname !== 'string') {
-      return res.status(400).json({ status_code: 400, message: "Name must be a string." });
-    }
-    // Validate description (if provided)
-    if (req.body.email && typeof req.body.email !== 'string') {
-      return res.status(400).json({ status_code: 400, message: "Email must be a string." });
-    }
-  
-    // Validate mobile (if provided)
-    if (req.body.phone && typeof req.body.phone !== 'string') {
-      return res.status(400).json({ status_code: 400, message: "Phone number must be a string." });
-    }
-    if (req.body.phone) {
-      const existingContact = await Contact.findOne({ phone: req.body.phone });
-      if (existingContact) {
-        return res.status(409).json({ 
-          status_code: 409, 
-          message: "User with this phone number already exists!" 
-        });
-      }
-    }
-    
-     // Validate mobile (if provided)
-    //  if (req.body.course && typeof req.body.course !== 'string') {
-    //     return res.status(400).json({ status_code: 400, message: "Course must be a string." });
-    //   }
-       // Validate mobile (if provided)
-    if (req.body.message && typeof req.body.message !== 'string') {
-        return res.status(400).json({ status_code: 400, message: "Message must be a string." });
-      }
-      const fetch = require('node-fetch');
-      let stateName = '';
-      let countryName = '';
-      let cityName = '';
-      let assignee = '';
-      let staff_mobile = '';
-    
-      try {
-        const response = await fetch("https://api.geoapify.com/v1/ipinfo?&apiKey=aa33e979ca2246e2bc742ee17d74ad7a");
-        const result = await response.json();
-        
-        const stateName = req.body.state || result.state.name;
-        const cityName = result.city.name;
-        const countryName = req.body.country || result.country.name;
-        console.log("State name:", stateName);
-        console.log("City name:", cityName);
-        console.log("Country name:", countryName);
-      } catch (error) {
-        console.log('error', error);
-      }
-      let condition = {}
-      if (typeof stateName === 'string' && typeof countryName === 'string') {
-        let normalizedState = stateName.toLowerCase();
-        let normalizedCountry = countryName.toLowerCase();
-      
-        // Fetch all users from the database
-        User.find()
-          .then(users => {
-            console.log("users :: ", users);
-            if (users && users.length > 0) {
-              let foundMatch = false; // Flag to track if a match is found
-      
-              for (let user of users) {
-                console.log("each user :: ", user.name);
-                if (user.preferences) {
-                  console.log('it comes here');
-                  let preferences = user.preferences.toLowerCase();
-                  console.log(preferences);
-                  console.log(normalizedState);
-                  console.log(normalizedCountry);
-      
-                  // Map the state to the region based on the user's preferences
-                  if (preferences === 'south_india' && LocationMap.south_india.map(state => state.toLowerCase()).includes(normalizedState)) {
-                    console.log(`Assigning to ${user.name}`);
-                    assignee = user.name
-                    staff_mobile = user.phone_number
-                    foundMatch = true; // Match found
-                    break; // Exit loop
-                  } else if (preferences === 'north_india' && LocationMap.north_india.map(state => state.toLowerCase()).includes(normalizedState)) {
-                    console.log(`Assigning to ${user.name}`);
-                    assignee = user.name
-                    staff_mobile = user.phone_number
-                    foundMatch = true;
-                    break; // Exit loop
-                  } else if (preferences === 'international' && normalizedCountry !== 'india') {
-                    console.log(`Assigning to ${user.name}`);
-                    assignee = user.name
-                    staff_mobile = user.phone_number
-                    foundMatch = true;
-                    break; // Exit loop
-                  }
-                }
-              }
-      
-              if (!foundMatch) {
-                console.log("No match found for any user based on their preferences and location");
-              }
-            } else {
-              console.log("No users found in the database");
-            }
-          })
-          .catch(error => {
-            console.log("Error fetching users:", error);
-          });
-      }
-    
-    console.log(staff_mobile)
-    const createdBy = req.user ? req.user.userName || req.user.userId : 'System';
-    console.log("createdby:",createdBy)
-    // Create a Training with event_details and systems_used
-    const contact = new Contact({
-      fullname: req.body.fullname,
-      email: req.body.email,
-      phone: req.body.phone,
-      courses: req.body.courses,
-      message: req.body.message,
-      lead_status: req.body.lead_status,
-      source : req.body.source,
-      additional_details : req.body.additional_details,
-      // city : cityName,
-      state : req.body.state,
-      country : req.body.country,
-      assignee : assignee,
-      createdBy: createdBy
-
-    });
-    console.log('req.user:', req.user);
-console.log('req.headers:', req.headers);
-  // Save the training data
-  contact.save()
-    .then(data => {
-      console.log("✅ Data saved to MongoDB:", data);
-        createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message, data.source, data.additional_details);
-        if (staff_mobile){
-          console.log(staff_mobile)
-           LeadNotificationToStaff(assignee,staff_mobile, data.fullname, data.email, data.phone, data.course)
+exports.createwithcreator = async (req, res) => {
+    try {
+        // Validate required fields
+        if (!req.body.fullname || typeof req.body.fullname !== 'string') {
+            return res.status(400).json({ status_code: 400, message: "Valid name is required!" });
         }
-        
-      res.status(201).json({ status_code: 201, message: "Contact created successfully", data: data });
-    })
-    .catch(err => {
-       console.error("❌ MongoDB Save Error:", err);
-      res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while Generating query." });
-    });
-    };
-
+        if (req.body.email && typeof req.body.email !== 'string') {
+            return res.status(400).json({ status_code: 400, message: "Email must be a string." });
+        }
+        if (req.body.phone && typeof req.body.phone !== 'string') {
+            return res.status(400).json({ status_code: 400, message: "Phone must be a string." });
+        }
+        // Check if phone already exists
+        if (req.body.phone) {
+            const existingContact = await Contact.findOne({ phone: req.body.phone });
+            if (existingContact) {
+                return res.status(409).json({
+                    status_code: 409,
+                    message: "User with this phone number already exists!"
+                });
+            }
+        }
+        if (req.body.message && typeof req.body.message !== 'string') {
+            return res.status(400).json({ status_code: 400, message: "Message must be a string." });
+        }
+        // Creator info
+        const createdBy = req.user ? req.user.userId : 'System';
+        console.log("createdBy:", createdBy);
+        let assignee = '';
+        let staff_mobile = '';
+        // Try to find creator in Users collection
+        const creatorUser = await User.findOne({
+            $or: [{ username: createdBy }, { name: createdBy },{_id:createdBy}]
+        });
+        if (creatorUser) {
+            if (creatorUser.userType === 'admin') {
+                console.log("Creator is admin, leaving assignee empty");
+            } else {
+                assignee = creatorUser.name;
+                staff_mobile = creatorUser.phone_number;
+                console.log(`Assigning to creator: ${assignee}, Mobile: ${staff_mobile}`);
+            }
+        } else {
+            console.log("Creator not found, fallback to geo assignment");
+            // (your geographic fallback logic here – same as before)
+        }
+        // Save the new contact
+        const contact = new Contact({
+            fullname: req.body.fullname,
+            email: req.body.email,
+            phone: req.body.phone,
+            courses: req.body.courses,
+            message: req.body.message,
+            lead_status: req.body.lead_status,
+            source: req.body.source,
+            additional_details: req.body.additional_details,
+            state: req.body.state,
+            country: req.body.country,
+            assignee: assignee,
+            createdBy: createdBy
+        });
+        const data = await contact.save();
+        console.log(":white_check_mark: Data saved to MongoDB:", data);
+        createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message, data.source, data.additional_details);
+        const admins = await User.find({ userType: 'admin' }, '_id');
+        const staffName = creatorUser ? creatorUser.name : 'Unknown';
+        for (const admin of admins) {
+            await createNotificationDirect(
+                admin._id,
+                `New lead created by ${staffName}: ${data.fullname} (${data.phone}) - ${data.courses.join(', ')}`,
+                'lead_creation',
+                data._id,
+                createdBy // :white_check_mark: Attach who created the lead
+            );
+        }
+        res.status(201).json({ status_code: 201, message: "Contact created successfully", data });
+    } catch (err) {
+        console.error(":x: Error in createwithcreator:", err);
+        res.status(500).json({ status_code: 500, message: err.message || "Some error occurred while creating contact." });
+    }
+};
 
 async function getUserName(createdById) {
   try {
@@ -817,3 +746,201 @@ async function getUserName(createdById) {
     console.error(err);
   }
 }
+
+exports.onAssigneeSelect = async (req, res) => {
+  try {
+    const { selectedAssignee, itemId } = req.body;
+    console.log('onAssigneeSelect called with:', { selectedAssignee, itemId });
+    // Find the staff user
+    const staff = await User.findOne({ name: selectedAssignee });
+    if (!staff) {
+      return res.status(404).json({
+        status_code: 404,
+        message: "Staff not found"
+      });
+    }
+    // Update the contact
+    const updatedContact = await Contact.findByIdAndUpdate(
+      itemId,
+      { assignee: selectedAssignee },
+      { new: true }
+    );
+    if (!updatedContact) {
+      return res.status(404).json({
+        status_code: 404,
+        message: "Contact not found"
+      });
+    }
+    // Create website notification using the utility function
+    const notificationMessage = `You have been assigned a new lead: ${updatedContact.fullname} - ${updatedContact.courses} (Phone: ${updatedContact.phone})`;
+    // :white_check_mark: CHANGE 'lead_assignment' to 'assignment' (or another valid enum value)
+    await createNotificationDirect(
+      staff._id,
+      notificationMessage,
+      'assignment', // :white_check_mark: Changed from 'lead_assignment' to 'assignment'
+      itemId
+    );
+    console.log('Website notification created for staff:', staff.name);
+    // Send WhatsApp notification (existing functionality)
+    if (staff.phone_number) {
+      await LeadNotificationToStaff(
+        staff.name,
+        staff.phone_number,
+        updatedContact.fullname,
+        updatedContact.email,
+        updatedContact.phone,
+        updatedContact.courses
+      );
+      console.log('WhatsApp notification sent to staff:', staff.phone_number);
+    }
+    res.status(200).json({
+      status_code: 200,
+      message: "Contact assigned successfully",
+      data: updatedContact
+    });
+  } catch (error) {
+    console.error('Error in onAssigneeSelect:', error);
+    res.status(500).json({
+      status_code: 500,
+      message: "Internal server error"
+    });
+  }
+};
+
+
+exports.getNonRegisteredContacts = async (req, res) => {
+  try {
+    const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee } = req.body;
+    const isStaff = req.user?.userType === 'staff';
+    const isRegularUser = req.user?.userType === 'user';
+    
+    console.log('Body Parameters for non-registered:', req.body);
+    
+    let condition = { isRegistered: { $ne: 1 } }; // Only non-registered contacts
+    
+    const page = parseInt(page_num) || 1;
+    const limit = parseInt(page_size) || 10;
+    const skip = (page - 1) * limit;
+
+    // If staff is requesting, only show their assigned leads
+    if (isStaff) {
+      const staff = await User.findById(req.user.userId);
+      if (!staff) {
+        return res.status(404).json({
+          status_code: 404,
+          message: "Staff user not found."
+        });
+      }
+      condition.$or = [
+        { assignee: staff.name },
+        { assignee: staff.username }
+      ];
+    }
+    
+    // If regular user is requesting, only show their own leads
+    else if (isRegularUser) {
+      condition.$or = [
+        { email: req.user.email },
+        { phone: req.user.phone_number }
+      ];
+    }
+
+    // Add filtering conditions based on the provided parameters
+    if (start_date && end_date) {
+      condition.createdAt = {
+        $gte: new Date(start_date),
+        $lte: new Date(new Date(end_date).setHours(23, 59, 59, 999))
+      };
+    }
+    
+    if (searchTerm) {
+      condition.$or = [
+        ...(condition.$or || []),
+        { fullname: { $regex: new RegExp(searchTerm, 'i') } },
+        { email: { $regex: new RegExp(searchTerm, 'i') } },
+        { phone: { $regex: new RegExp(searchTerm, 'i') } },
+        { courses: { $regex: new RegExp(searchTerm, 'i') } }
+      ];
+    }
+    
+    if (assignee && !isStaff && !isRegularUser) {
+      condition.assignee = assignee;
+    }
+
+    // Get total count for pagination
+    const total = await Contact.countDocuments(condition);
+    
+    // Fetch data from the database
+     const data = await Contact.find(condition)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    // Process the result to extract date and time from createdAt
+// Process the result to extract date and time from createdAt
+const formattedData = await Promise.all(data.map(async (item) => {
+  const createdAt = moment(item.createdAt).tz('Asia/Kolkata');
+  
+  let created_by_name = 'System';
+  
+  // Check if createdBy exists and is not 'System'
+  if (item.createdBy && item.createdBy !== 'System') {
+    // If it's a valid ObjectId format, try to find by ID
+    if (mongoose.Types.ObjectId.isValid(item.createdBy)) {
+      try {
+        const user_data = await User.findById(item.createdBy);
+        if (user_data) {
+          created_by_name = user_data.name;
+        }
+      } catch (err) {
+        console.error('Error fetching user by ID:', err);
+        created_by_name = item.createdBy; // Fallback to the original value
+      }
+    } else {
+      // If it's not an ObjectId, try to find by username or email
+      try {
+        const user_data = await User.findOne({
+          $or: [
+            { username: item.createdBy },
+            { email: item.createdBy },
+            { name: item.createdBy }
+          ]
+        });
+        if (user_data) {
+          created_by_name = user_data.name;
+        } else {
+          created_by_name = item.createdBy; // Use the username/email as fallback
+        }
+      } catch (err) {
+        console.error('Error fetching user by username/email:', err);
+        created_by_name = item.createdBy;
+      }
+    }
+  }
+
+  return {
+    ...item._doc,
+    created_date: createdAt.format('YYYY-MM-DD'),
+    created_time: createdAt.format('HH:mm:ss'),
+    created_by: created_by_name
+  };
+}));
+
+    res.status(200).json({
+      status_code: 200,
+      message: "Non-registered contact data retrieved successfully",
+      data: formattedData,
+      pagination: {
+        current_page: page,
+        total_pages: Math.ceil(total / limit),
+        total_items: total,
+        items_per_page: limit
+      }
+    });
+  } catch (err) {
+    console.error('Error in getNonRegisteredContacts:', err);
+    res.status(500).json({
+      status_code: 500,
+      message: err.message || "Some error occurred while retrieving non-registered contact data."
+    });
+  }
+};

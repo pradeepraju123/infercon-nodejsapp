@@ -51,8 +51,8 @@ require("./app/routes/placement.routes.js")(app);
 require("./app/routes/facebook.routes.js")(app);
 require("./app/routes/templates.routes.js")(app);
 require("./app/routes/dashboard.routes.js")(app);
-
-
+require("./app/routes/installment.routes.js")(app);
+require("./app/routes/notification.routes.js")(app);
 // set port, listen for requests
 const PORT = process.env.PORT || 8081;
 app.listen(PORT, () => {
