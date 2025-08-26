@@ -169,7 +169,7 @@ exports.getAll = async (req, res) => {
     console.log('Body Parameters:', req.body);
     let condition = {};
     const page = parseInt(page_num) || 1;
-    const limit = parseInt(page_size) || 10;
+    const limit = parseInt(page_size) || 100;
     const skip = (page - 1) * limit;
     // If staff is requesting, only show their assigned leads
     if (isStaff) {
