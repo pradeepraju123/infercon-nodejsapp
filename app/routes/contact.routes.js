@@ -8,6 +8,7 @@ module.exports = app => {
     router.post("/create-with-creator", authenticateToken, contact.createwithcreator);
     // Retrieve all Tutorials
     router.post("/get", authenticateToken, contact.getAll);
+    router.post("/getUnregistration",authenticateToken,contact.getNonRegisteredContacts)
      // Download contact details
      router.post("/download", contact.download);
     // Update a Tutorial with id
@@ -35,7 +36,7 @@ module.exports = app => {
    
     router.post("/filter/registered",authenticateToken, contact.filterByRegistrationStatus); // Filter leads
 
-
+  router.post("/action/on-assignee-select", contact.onAssigneeSelect);
     
     app.use('/api/v1/contact', router);
     
