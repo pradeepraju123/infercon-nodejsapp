@@ -14,6 +14,8 @@ module.exports = mongoose => {
           followup_date: Date,
           followup_time: String, 
           assignee: String,
+          assigned_date:Date,
+          assigned_time:String,
           source: String,
           degree: String,
           specification: String,
@@ -41,8 +43,11 @@ module.exports = mongoose => {
           type: String,
           default: 'System' // Default value if not specified
         },
-
+      isDeleted: { type: Boolean, default: false },
+      deletedAt: { type: Date },
+      deletedBy: { type: String } 
         },
+        
         
         { timestamps: true }
       )

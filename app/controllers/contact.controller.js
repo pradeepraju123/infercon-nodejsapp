@@ -131,13 +131,15 @@ exports.create = async (req, res) => {
       phone: req.body.phone,
       courses: req.body.courses,
       message: req.body.message,
-      lead_status: req.body.lead_status,
+      lead_status: req.body.lead_status || 'New lead',
       source : req.body.source,
       additional_details : req.body.additional_details,
       // city : cityName,
       state : req.body.state,
       country : req.body.country,
       assignee : assignee,
+      assigned_date: new Date(), 
+      assigned_time: moment().tz('Asia/Kolkata').format('HH:mm:ss'),
       // createdBy: createdBy
 
     });
@@ -145,6 +147,9 @@ exports.create = async (req, res) => {
   contact.save()
     .then(data => {
       console.log("✅ Data saved to MongoDB:", data);
+      console.log("✅ Assigned to:", data.assignee);
+            console.log("✅ Assigned date:", data.assigned_date);
+            console.log("✅ Assigned time:", data.assigned_time);
         createWhatsappMessage(data.fullname, data.email, data.phone, data.courses, data.message, data.source, data.additional_details);
         if (staff_mobile){
           console.log(staff_mobile)
@@ -159,14 +164,13 @@ exports.create = async (req, res) => {
     });
     };
 
-// Retrieve all Training from the database with pagination.
 exports.getAll = async (req, res) => {
   try {
     const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee } = req.body;
     const isStaff = req.user?.userType === 'staff';
     const isRegularUser = req.user?.userType === 'user'; // Add this line
     console.log('Body Parameters:', req.body);
-    let condition = {};
+    let condition = {isDeleted: {$ne: true}};
     const page = parseInt(page_num) || 1;
     const limit = parseInt(page_size) || 10;
     const skip = (page - 1) * limit;
@@ -605,7 +609,7 @@ exports.filterByRegistrationStatus = async (req, res) => {
     const skip = (page - 1) * limit;
     const isStaff = req.user?.userType === 'staff';
     // Base query for registered leads
-    const query = { isRegistered: 1 };
+    const query = { isRegistered: 1, isDeleted: { $ne: true }  };
     // If staff is requesting, only show their assigned registered leads
     if (isStaff) {
       const staff = await User.findById(req.user.userId);
@@ -708,12 +712,14 @@ exports.createwithcreator = async (req, res) => {
             phone: req.body.phone,
             courses: req.body.courses,
             message: req.body.message,
-            lead_status: req.body.lead_status,
+            lead_status: req.body.lead_status || 'New lead',
             source: req.body.source,
             additional_details: req.body.additional_details,
             state: req.body.state,
             country: req.body.country,
             assignee: assignee,
+            assigned_date: new Date(),
+            assigned_time: moment().tz('Asia/Kolkata').format('HH:mm:ss'),
             createdBy: createdBy
         });
         const data = await contact.save();
@@ -762,7 +768,10 @@ exports.onAssigneeSelect = async (req, res) => {
     // Update the contact
     const updatedContact = await Contact.findByIdAndUpdate(
       itemId,
-      { assignee: selectedAssignee },
+      {  assignee: selectedAssignee,
+        assigned_date: new Date(),
+        assigned_time: moment().tz('Asia/Kolkata').format('HH:mm:ss'),
+        lead_status: 'New lead' },
       { new: true }
     );
     if (!updatedContact) {
@@ -810,14 +819,16 @@ exports.onAssigneeSelect = async (req, res) => {
 
 exports.getNonRegisteredContacts = async (req, res) => {
   try {
-    const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee } = req.body;
+    const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee,lead_status } = req.body;
     const isStaff = req.user?.userType === 'staff';
     const isRegularUser = req.user?.userType === 'user';
     
     console.log('Body Parameters for non-registered:', req.body);
     
-    let condition = { isRegistered: { $ne: 1 } }; // Only non-registered contacts
-    
+    let condition = { isRegistered: { $ne: 1 },isDeleted: { $ne: true }  }; // Only non-registered contacts
+      if (lead_status) {
+      condition.lead_status = lead_status;
+    }
     const page = parseInt(page_num) || 1;
     const limit = parseInt(page_size) || 10;
     const skip = (page - 1) * limit;
@@ -875,6 +886,16 @@ exports.getNonRegisteredContacts = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+
+    // 🔍 ADD DEBUG LOGGING HERE
+    console.log('🔍 [BACKEND DEBUG] Raw database data:', data.map(item => ({
+      id: item._id,
+      name: item.fullname,
+      assigned_date: item.assigned_date,
+      assigned_time: item.assigned_time,
+      assignee: item.assignee
+    })));
+
     // Process the result to extract date and time from createdAt
 const formattedData = await Promise.all(data.map(async (item) => {
   const createdAt = moment(item.createdAt).tz('Asia/Kolkata');
@@ -916,14 +937,28 @@ const formattedData = await Promise.all(data.map(async (item) => {
     }
   }
 
-  return {
+  // 🔍 FIX: Include assigned_date and assigned_time in the response
+  const formattedItem = {
     ...item._doc,
     created_date: createdAt.format('YYYY-MM-DD'),
     created_time: createdAt.format('HH:mm:ss'),
-    created_by: created_by_name
+    created_by: created_by_name,
+    assigned_date: item.assigned_date,
+    assigned_time: item.assigned_time
   };
+
+  console.log('🔍 [BACKEND DEBUG] Formatted item:', {
+    id: formattedItem._id,
+    name: formattedItem.fullname,
+    assigned_date: formattedItem.assigned_date,
+    assigned_time: formattedItem.assigned_time
+  });
+
+  return formattedItem;
 }));
 
+    console.log('🔍 [BACKEND DEBUG] Final response data sample:', formattedData.slice(0, 2));
+    
     res.status(200).json({
       status_code: 200,
       message: "Non-registered contact data retrieved successfully",
@@ -940,6 +975,469 @@ const formattedData = await Promise.all(data.map(async (item) => {
     res.status(500).json({
       status_code: 500,
       message: err.message || "Some error occurred while retrieving non-registered contact data."
+    });
+  }
+};
+
+exports.softDelete = async (req, res) => {
+  try {
+    const id = req.params.id;
+    
+    // Get the user info properly - check different possible user object structures
+    let deletedBy = 'System';
+    if (req.user) {
+      deletedBy = req.user.username || req.user.name || req.user.userId || 'Unknown';
+    }
+
+    const updatedContact = await Contact.findByIdAndUpdate(
+      id,
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: deletedBy
+      },
+      { new: true }
+    );
+
+    if (!updatedContact) {
+      return res.status(404).json({ 
+        status_code: 404, 
+        message: `Contact with id=${id} not found!` 
+      });
+    }
+
+    res.status(200).json({ 
+      status_code: 200, 
+      message: "Contact was deleted successfully", 
+      data: updatedContact 
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      status_code: 500, 
+      message: "Error deleting contact with id=" + id 
+    });
+  }
+};
+
+exports.getDeleted = async (req, res) => {
+  try {
+    const { page_size, page_num } = req.body;
+    const page = parseInt(page_num) || 1;
+    const limit = parseInt(page_size) || 10;
+    const skip = (page - 1) * limit;
+
+    const condition = { isDeleted: true };
+
+    // Get total count for pagination
+    const total = await Contact.countDocuments(condition);
+
+    // Fetch data from the database
+    const data = await Contact.find(condition)
+      .sort({ deletedAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Format the response with user name lookup
+    const formattedData = await Promise.all(data.map(async (item) => {
+      const deletedAt = moment(item.deletedAt).tz('Asia/Kolkata');
+      
+      let deletedByName = item.deletedBy || 'System';
+      
+      // If deletedBy is a valid ObjectId, try to find the user
+      if (mongoose.Types.ObjectId.isValid(item.deletedBy)) {
+        try {
+          const user = await User.findById(item.deletedBy);
+          if (user) {
+            deletedByName = user.name || user.username || item.deletedBy;
+          }
+        } catch (err) {
+          console.error('Error fetching user by ID:', err);
+          // Keep the original value if there's an error
+        }
+      } else if (item.deletedBy && item.deletedBy !== 'System') {
+        // If it's not an ObjectId but has a value, try to find by username/name
+        try {
+          const user = await User.findOne({
+            $or: [
+              { username: item.deletedBy },
+              { name: item.deletedBy },
+              { email: item.deletedBy }
+            ]
+          });
+          if (user) {
+            deletedByName = user.name || user.username || item.deletedBy;
+          }
+        } catch (err) {
+          console.error('Error fetching user by username/name:', err);
+          // Keep the original value if there's an error
+        }
+      }
+
+      return {
+        ...item._doc,
+        deleted_date: deletedAt.format('YYYY-MM-DD'),
+        deleted_time: deletedAt.format('HH:mm:ss'),
+        deleted_by: deletedByName
+      };
+    }));
+
+    res.status(200).json({
+      status_code: 200,
+      message: "Deleted contacts retrieved successfully",
+      data: formattedData,
+      pagination: {
+        current_page: page,
+        total_pages: Math.ceil(total / limit),
+        total_items: total,
+        items_per_page: limit
+      }
+    });
+  } catch (err) {
+    console.error('Error:', err);
+    res.status(500).json({
+      status_code: 500,
+      message: err.message || "Some error occurred while retrieving deleted contacts."
+    });
+  }
+};
+
+
+exports.restore = async (req, res) => {
+  try {
+    const id = req.params.id;
+    const restoredBy = req.user ? req.user.username || req.user.name : 'System';
+
+    const updatedContact = await Contact.findByIdAndUpdate(
+      id,
+      {
+        isDeleted: false,
+        $unset: { deletedAt: "", deletedBy: "" }
+      },
+      { new: true }
+    );
+
+    if (!updatedContact) {
+      return res.status(404).json({ 
+        status_code: 404, 
+        message: `Contact with id=${id} not found!` 
+      });
+    }
+
+    res.status(200).json({ 
+      status_code: 200, 
+      message: "Contact was restored successfully", 
+      data: updatedContact 
+    });
+  } catch (err) {
+    res.status(500).json({ 
+      status_code: 500, 
+      message: "Error restoring contact with id=" + id 
+    });
+  }
+};
+
+exports.getFollowupLeads = async (req, res) => {
+  try {
+    const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee } = req.body;
+    const isStaff = req.user?.userType === 'staff';
+    const isRegularUser = req.user?.userType === 'user';
+    
+    console.log('Body Parameters for followup leads:', req.body);
+    
+    let condition = { 
+      lead_status: { $in: ['Followup', 'Positive', 'Medium'] },
+      isDeleted: { $ne: true },
+      isRegistered: { $ne: 1 }
+    };
+
+    const page = parseInt(page_num) || 1;
+    const limit = parseInt(page_size) || 10;
+    const skip = (page - 1) * limit;
+
+    // If staff is requesting, only show their assigned leads
+    if (isStaff) {
+      const staff = await User.findById(req.user.userId);
+      if (!staff) {
+        return res.status(404).json({
+          status_code: 404,
+          message: "Staff user not found."
+        });
+      }
+      condition.$or = [
+        { assignee: staff.name },
+        { assignee: staff.username }
+      ];
+    }
+    
+    // If regular user is requesting, only show their own leads
+    else if (isRegularUser) {
+      condition.$or = [
+        { email: req.user.email },
+        { phone: req.user.phone_number }
+      ];
+    }
+
+    // Add filtering conditions based on the provided parameters
+    if (start_date && end_date) {
+      condition.createdAt = {
+        $gte: new Date(start_date),
+        $lte: new Date(new Date(end_date).setHours(23, 59, 59, 999))
+      };
+    }
+    
+    if (searchTerm) {
+      condition.$or = [
+        ...(condition.$or || []),
+        { fullname: { $regex: new RegExp(searchTerm, 'i') } },
+        { email: { $regex: new RegExp(searchTerm, 'i') } },
+        { phone: { $regex: new RegExp(searchTerm, 'i') } },
+        { courses: { $regex: new RegExp(searchTerm, 'i') } }
+      ];
+    }
+    
+    if (assignee && !isStaff && !isRegularUser) {
+      condition.assignee = assignee;
+    }
+
+    // Get total count for pagination
+    const total = await Contact.countDocuments(condition);
+    
+    // Fetch data from the database with followup details
+    const data = await Contact.find(condition)
+      .sort({ followup_date: -1, followup_time: -1 }) // Sort by followup date and time
+      .skip(skip)
+      .limit(limit);
+
+    // Process the result to extract date and time from createdAt and format followup details
+    const formattedData = await Promise.all(data.map(async (item) => {
+      const createdAt = moment(item.createdAt).tz('Asia/Kolkata');
+      const followupDate = item.followup_date ? moment(item.followup_date).tz('Asia/Kolkata') : null;
+      
+      let created_by_name = 'System';
+      
+      // Check if createdBy exists and is not 'System'
+      if (item.createdBy && item.createdBy !== 'System') {
+        if (mongoose.Types.ObjectId.isValid(item.createdBy)) {
+          try {
+            const user_data = await User.findById(item.createdBy);
+            if (user_data) {
+              created_by_name = user_data.name;
+            }
+          } catch (err) {
+            console.error('Error fetching user by ID:', err);
+            created_by_name = item.createdBy; 
+          }
+        } else {
+          try {
+            const user_data = await User.findOne({
+              $or: [
+                { username: item.createdBy },
+                { email: item.createdBy },
+                { name: item.createdBy }
+              ]
+            });
+            if (user_data) {
+              created_by_name = user_data.name;
+            } else {
+              created_by_name = item.createdBy;
+            }
+          } catch (err) {
+            console.error('Error fetching user by username/email:', err);
+            created_by_name = item.createdBy;
+          }
+        }
+      }
+
+      const formattedItem = {
+        ...item._doc,
+        created_date: createdAt.format('YYYY-MM-DD'),
+        created_time: createdAt.format('HH:mm:ss'),
+        created_by: created_by_name,
+        assigned_date: item.assigned_date,
+        assigned_time: item.assigned_time,
+        followup_date_formatted: followupDate ? followupDate.format('YYYY-MM-DD') : null,
+        followup_time_formatted: item.followup_time ? moment(item.followup_time, 'HH:mm:ss').format('HH:mm') : null,
+        is_overdue: followupDate ? followupDate.isBefore(moment(), 'day') : false,
+        is_today: followupDate ? followupDate.isSame(moment(), 'day') : false
+      };
+
+      return formattedItem;
+    }));
+
+    console.log(' Followup leads response:', {
+      total: total,
+      page: page,
+      limit: limit,
+      data_count: formattedData.length
+    });
+    
+    res.status(200).json({
+      status_code: 200,
+      message: "Followup leads data retrieved successfully",
+      data: formattedData,
+      pagination: {
+        current_page: page,
+        total_pages: Math.ceil(total / limit),
+        total_items: total,
+        items_per_page: limit
+      }
+    });
+  } catch (err) {
+    console.error('Error in getFollowupLeads:', err);
+    res.status(500).json({
+      status_code: 500,
+      message: err.message || "Some error occurred while retrieving followup leads data."
+    });
+  }
+};
+
+exports.getFinalizedLeads = async (req, res) => {
+  try {
+    const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee } = req.body;
+    const isStaff = req.user?.userType === 'staff';
+    const isRegularUser = req.user?.userType === 'user';
+    
+    console.log('Body Parameters for finalized leads:', req.body);
+    
+    let condition = { 
+      lead_status: 'Finalized',
+      isDeleted: { $ne: true },
+      isRegistered: { $ne: 1 } // Only show non-registered finalized leads
+    };
+
+    const page = parseInt(page_num) || 1;
+    const limit = parseInt(page_size) || 10;
+    const skip = (page - 1) * limit;
+
+    // If staff is requesting, only show their assigned leads
+    if (isStaff) {
+      const staff = await User.findById(req.user.userId);
+      if (!staff) {
+        return res.status(404).json({
+          status_code: 404,
+          message: "Staff user not found."
+        });
+      }
+      condition.$or = [
+        { assignee: staff.name },
+        { assignee: staff.username }
+      ];
+    }
+    
+    // If regular user is requesting, only show their own leads
+    else if (isRegularUser) {
+      condition.$or = [
+        { email: req.user.email },
+        { phone: req.user.phone_number }
+      ];
+    }
+
+    // Add filtering conditions based on the provided parameters
+    if (start_date && end_date) {
+      condition.createdAt = {
+        $gte: new Date(start_date),
+        $lte: new Date(new Date(end_date).setHours(23, 59, 59, 999))
+      };
+    }
+    
+    if (searchTerm) {
+      condition.$or = [
+        ...(condition.$or || []),
+        { fullname: { $regex: new RegExp(searchTerm, 'i') } },
+        { email: { $regex: new RegExp(searchTerm, 'i') } },
+        { phone: { $regex: new RegExp(searchTerm, 'i') } },
+        { courses: { $regex: new RegExp(searchTerm, 'i') } }
+      ];
+    }
+    
+    if (assignee && !isStaff && !isRegularUser) {
+      condition.assignee = assignee;
+    }
+
+    // Get total count for pagination
+    const total = await Contact.countDocuments(condition);
+    
+    // Fetch data from the database
+    const data = await Contact.find(condition)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Process the result to extract date and time
+    const formattedData = await Promise.all(data.map(async (item) => {
+      const createdAt = moment(item.createdAt).tz('Asia/Kolkata');
+      const finalizedDate = item.updatedAt ? moment(item.updatedAt).tz('Asia/Kolkata') : null;
+      
+      let created_by_name = 'System';
+      
+      // Check if createdBy exists and is not 'System'
+      if (item.createdBy && item.createdBy !== 'System') {
+        if (mongoose.Types.ObjectId.isValid(item.createdBy)) {
+          try {
+            const user_data = await User.findById(item.createdBy);
+            if (user_data) {
+              created_by_name = user_data.name;
+            }
+          } catch (err) {
+            console.error('Error fetching user by ID:', err);
+            created_by_name = item.createdBy; 
+          }
+        } else {
+          try {
+            const user_data = await User.findOne({
+              $or: [
+                { username: item.createdBy },
+                { email: item.createdBy },
+                { name: item.createdBy }
+              ]
+            });
+            if (user_data) {
+              created_by_name = user_data.name;
+            } else {
+              created_by_name = item.createdBy;
+            }
+          } catch (err) {
+            console.error('Error fetching user by username/email:', err);
+            created_by_name = item.createdBy;
+          }
+        }
+      }
+
+      return {
+        ...item._doc,
+        created_date: createdAt.format('YYYY-MM-DD'),
+        created_time: createdAt.format('HH:mm:ss'),
+        created_by: created_by_name,
+        assigned_date: item.assigned_date,
+        assigned_time: item.assigned_time,
+        finalized_date: finalizedDate ? finalizedDate.format('YYYY-MM-DD') : null,
+        finalized_time: finalizedDate ? finalizedDate.format('HH:mm:ss') : null
+      };
+    }));
+
+    console.log(' Finalized leads response:', {
+      total: total,
+      page: page,
+      limit: limit,
+      data_count: formattedData.length
+    });
+    
+    res.status(200).json({
+      status_code: 200,
+      message: "Finalized leads data retrieved successfully",
+      data: formattedData,
+      pagination: {
+        current_page: page,
+        total_pages: Math.ceil(total / limit),
+        total_items: total,
+        items_per_page: limit
+      }
+    });
+  } catch (err) {
+    console.error('Error in getFinalizedLeads:', err);
+    res.status(500).json({
+      status_code: 500,
+      message: err.message || "Some error occurred while retrieving finalized leads data."
     });
   }
 };

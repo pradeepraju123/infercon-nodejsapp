@@ -11,6 +11,11 @@ module.exports = app => {
     router.post("/getUnregistration",authenticateToken,contact.getNonRegisteredContacts)
      // Download contact details
      router.post("/download", contact.download);
+     router.get("/deleted", contact.getDeleted);
+     
+    router.post("/followup-leads", authenticateToken,contact.getFollowupLeads);
+
+    router.post("/finalized",authenticateToken,contact.getFinalizedLeads)
     // Update a Tutorial with id
     router.post("/:id",  contact.update);
     // Retrieve a single Tutorial with id
@@ -28,12 +33,17 @@ module.exports = app => {
 
    router.get('/contacts/:id/comments', contact.getComments);
 
-   router.post("/:id/mark-registered", contact.markAsRegistered); // Mark a lead as registered
+  router.post("/:id/mark-registered", contact.markAsRegistered); // Mark a lead as registered
    
-    router.post("/filter/registered",authenticateToken, contact.filterByRegistrationStatus); // Filter leads
+  router.post("/filter/registered",authenticateToken, contact.filterByRegistrationStatus); // Filter leads
 
   router.post("/action/on-assignee-select", contact.onAssigneeSelect);
-    
+
+
+  router.delete("/:id/soft-delete", authenticateToken,contact.softDelete); // Replace hard delete with soft delete
+  
+  router.patch("/:id/restore", authenticateToken,contact.restore);
+
     app.use('/api/v1/contact', router);
     
   };

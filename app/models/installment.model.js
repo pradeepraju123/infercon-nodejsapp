@@ -53,6 +53,11 @@ module.exports=mongoose=>{
         type: Number,
         default: 0
     },
+    installmentType: {
+            type: String,
+            enum: ['auto', 'manual'],
+            default: 'manual'
+        },
     overallStatus: {
         type: String,
         enum: ['pending', 'partially_paid', 'completed', 'cancelled'],
@@ -72,8 +77,21 @@ module.exports=mongoose=>{
             enum: ['pending', 'paid', 'overdue'],
             default: 'pending'
         },
-        paymentDate: Date
-    }],
+        paymentDate: Date,
+            customAmount: {
+                type: Boolean,
+                default: false
+            },
+            customDueDate: {
+                type: Boolean,
+                default: false
+            },
+            paidAmount: {
+                type: Number,
+                default: 0
+            },
+            notes: String
+        }],
     paymentHistory: [{
         amount: Number,
         date: {
@@ -81,7 +99,9 @@ module.exports=mongoose=>{
             default: Date.now
         },
         paymentMethod: String,
-        reference: String
+        reference: String,
+        installmentIndex: Number,
+        notes: String
     }],
     lastPaymentAmount: Number,
     lastPaymentDate: Date,
@@ -99,6 +119,47 @@ module.exports=mongoose=>{
 //     this.updatedAt = Date.now();
 //     next();
 // });
-
+schema.pre('save', function(next) {
+        this.updatedAt = Date.now();
+        
+        // Auto-update overdue status before saving
+        const today = new Date();
+        let hasOverdue = false;
+        let totalPaid = 0;
+        
+        this.installments.forEach(installment => {
+            // Update overdue status
+            if (installment.status === 'pending' && installment.dueDate < today) {
+                installment.status = 'overdue';
+                hasOverdue = true;
+            }
+            
+            // Calculate total paid amount
+            if (installment.status === 'paid') {
+                totalPaid += installment.amount;
+            } else if (installment.status === 'partially_paid') {
+                totalPaid += installment.paidAmount;
+            }
+        });
+        
+        // Update overall amounts
+        this.pendingAmount = this.totalAmount - totalPaid;
+        this.pendingInstallments = this.installments.filter(inst => 
+            ['pending', 'overdue', 'partially_paid'].includes(inst.status)
+        ).length;
+        
+        // Update overall status
+        if (this.pendingAmount <= 0) {
+            this.overallStatus = 'completed';
+        } else if (hasOverdue) {
+            this.overallStatus = 'overdue';
+        } else if (totalPaid > 0) {
+            this.overallStatus = 'partially_paid';
+        } else {
+            this.overallStatus = 'pending';
+        }
+        
+        next();
+    });
 return mongoose.model('Installment', schema);
 }
