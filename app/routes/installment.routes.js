@@ -8,6 +8,10 @@ router.post('/pay', installment.payInstallment);
  router.get('/details/:contactId',installment.getInstallmentDetails);
 router.get('/all', authenticateToken,installment.getAllAccounts)
 
+router.post('/manual-setup',authenticateToken,installment.setupManualInstallmentPlan)
+router.post('/manual-payment',authenticateToken,installment.payManualInstallment)
+router.put('/update-status',authenticateToken,installment.updateInstallmentStatus)
+router.put('/check-overdue/:contactId',authenticateToken, installment.updateOverdueInstallments);
 app.use('/api/v1/installments', router);
 }
 

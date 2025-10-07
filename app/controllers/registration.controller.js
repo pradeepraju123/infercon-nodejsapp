@@ -2,7 +2,6 @@ const {isValidUrl} = require('../utils/data.utils.js');
 const db = require("../models");
 const {createWhatsappMessageRegistration, createWhatsappfile } = require('../utils/whatsapp.utils.js');
 const Registration = db.registration;
-const Contact =db.contact
 // Create and Save a new Tutorial
 
 exports.create = (req, res) => {
