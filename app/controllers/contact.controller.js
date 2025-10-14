@@ -9,6 +9,8 @@ const exceljs = require('exceljs');
 const moment = require('moment-timezone');
 const mongoose = require('mongoose');
 const { createNotificationDirect } = require('../utils/notification.utils');
+const multer = require('multer');
+const XLSX = require('xlsx');
 // Create and Save a new Tutorial
 
 exports.create = async (req, res) => {
@@ -822,6 +824,7 @@ exports.getNonRegisteredContacts = async (req, res) => {
     const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee,lead_status } = req.body;
     const isStaff = req.user?.userType === 'staff';
     const isRegularUser = req.user?.userType === 'user';
+    const isAdmin = req.user?.userType === 'admin';
     
     console.log('Body Parameters for non-registered:', req.body);
     
@@ -833,7 +836,7 @@ exports.getNonRegisteredContacts = async (req, res) => {
     const limit = parseInt(page_size) || 10;
     const skip = (page - 1) * limit;
 
-    // If staff is requesting, only show their assigned leads
+    
     if (isStaff) {
       const staff = await User.findById(req.user.userId);
       if (!staff) {
@@ -855,8 +858,15 @@ exports.getNonRegisteredContacts = async (req, res) => {
         { phone: req.user.phone_number }
       ];
     }
-
-    // Add filtering conditions based on the provided parameters
+ else if (isAdmin && assignee) {
+      condition.assignee = assignee;
+      console.log('🔍 [BACKEND DEBUG] Admin with assignee filter:', assignee);
+    }
+    
+    else if (isAdmin) {
+      console.log('🔍 [BACKEND DEBUG] Admin - showing all data');
+    }
+    
     if (start_date && end_date) {
       condition.createdAt = {
         $gte: new Date(start_date),
@@ -1141,6 +1151,7 @@ exports.getFollowupLeads = async (req, res) => {
     const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee } = req.body;
     const isStaff = req.user?.userType === 'staff';
     const isRegularUser = req.user?.userType === 'user';
+    const isAdmin = req.user?.userType === 'admin';
     
     console.log('Body Parameters for followup leads:', req.body);
     
@@ -1176,7 +1187,9 @@ exports.getFollowupLeads = async (req, res) => {
         { phone: req.user.phone_number }
       ];
     }
-
+    else if (isAdmin && assignee) {
+      condition.assignee = assignee;
+    }
     // Add filtering conditions based on the provided parameters
     if (start_date && end_date) {
       condition.createdAt = {
@@ -1439,5 +1452,423 @@ exports.getFinalizedLeads = async (req, res) => {
       status_code: 500,
       message: err.message || "Some error occurred while retrieving finalized leads data."
     });
+  }
+};
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage: storage }).single('file');
+
+
+exports.excelupload = async (req, res) => {
+  upload(req, res, async function (err) {
+    if (err) return res.status(400).json({ status_code: 400, message: err.message });
+    if (!req.file) return res.status(400).json({ status_code: 400, message: "No file uploaded" });
+
+    try {
+      const workbook = new exceljs.Workbook();
+      await workbook.xlsx.readFile(req.file.path);
+      const worksheet = workbook.getWorksheet(1);
+
+      const insertedContacts = [];
+      const skippedContacts = [];
+      const processedData = [];
+
+      let rowCount = 0;
+
+      // Process each row
+      worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        rowCount++;
+        if (rowNumber === 1) return; // Skip header row
+
+        try {
+          // Get basic contact info
+          const fullname = row.getCell(1).value || '';
+          const email = row.getCell(2).value || '';
+          let phoneCell = row.getCell(3).value;
+          let phone = '';
+
+          if (phoneCell) {
+            if (typeof phoneCell === 'object' && phoneCell.text) {
+              phone = phoneCell.text.trim(); // for objects returned by exceljs
+            } else {
+              phone = phoneCell.toString().replace(/[^0-9+]/g, '').trim(); // remove non-numeric chars except '+'
+            }
+          }
+
+          const date_of_enquiry = row.getCell(4).value;
+          const source = row.getCell(5).value || '';
+         const student_code = row.getCell(6).value || '';
+const course = row.getCell(7).value || '';      // Add this line for "COURSE"
+const course_name = row.getCell(8).value || '';  // This is "COURSE NAME"
+const staff_name = row.getCell(9).value || '';
+          const total_amount = row.getCell(10).value || 0;
+          const vilt_cilt = row.getCell(11).value || '';
+          const outstanding = row.getCell(12).value || 0;
+          const remarks = row.getCell(13).value || '';
+
+          
+          const bank_charges = row.getCell(22)?.value || 0; 
+          const bank_charges_date = row.getCell(23)?.value || null; 
+          // Skip if no phone number
+          if (!phone) return;
+
+          // Parse total amount
+          let parsedTotalAmount = 0;
+          if (total_amount) {
+            if (typeof total_amount === 'number') {
+              parsedTotalAmount = total_amount;
+            } else if (typeof total_amount === 'string') {
+              const cleanAmount = total_amount.toString().replace(/[₹$,]/g, '').trim();
+              parsedTotalAmount = parseFloat(cleanAmount) || 0;
+            }
+          }
+
+          let parsedOutstanding = 0;
+          if (outstanding) {
+            if (typeof outstanding === 'number') {
+              parsedOutstanding = outstanding;
+            } else if (typeof outstanding === 'string') {
+              const cleanOutstanding = outstanding.toString().replace(/[₹$,]/g, '').trim();
+              parsedOutstanding = parseFloat(cleanOutstanding) || 0;
+            }
+          }
+
+          // Parse bank charges
+          let parsedBankCharges = 0;
+          if (bank_charges) {
+            if (typeof bank_charges === 'number') {
+              parsedBankCharges = bank_charges;
+            } else if (typeof bank_charges === 'string') {
+              const cleanCharges = bank_charges.toString().replace(/[₹$,]/g, '').trim();
+              parsedBankCharges = parseFloat(cleanCharges) || 0;
+            }
+          }
+
+          // Parse bank charges date
+          let parsedBankChargesDate = null;
+          if (bank_charges_date) {
+            if (bank_charges_date instanceof Date) {
+              parsedBankChargesDate = bank_charges_date;
+            } else if (typeof bank_charges_date === 'string') {
+              // Handle different date formats including "11.03.2025"
+              let dateStr = bank_charges_date.toString().trim();
+              
+              // Convert "11.03.2025" to "2025-03-11" format
+              if (dateStr.match(/^\d{1,2}\.\d{1,2}\.\d{4}$/)) {
+                const parts = dateStr.split('.');
+                dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+              }
+              
+              const dateObj = new Date(dateStr);
+              if (!isNaN(dateObj.getTime())) {
+                parsedBankChargesDate = dateObj;
+              }
+            }
+          }
+
+          let parsedRemarks = '';
+          if (remarks) {
+            if (remarks instanceof Date) {
+              parsedRemarks = remarks.toISOString().split('T')[0];
+            } else if (typeof remarks === 'string') {
+              try {
+                const dateObj = new Date(remarks);
+                if (!isNaN(dateObj.getTime())) {
+                  parsedRemarks = dateObj.toISOString().split('T')[0];
+                } else {
+                  parsedRemarks = remarks.toString();
+                }
+              } catch {
+                parsedRemarks = remarks.toString();
+              }
+            } else {
+              parsedRemarks = remarks.toString();
+            }
+          }
+
+          // FIX: Update fee columns to start from column 14 (after remarks)
+          const fees = [];
+          let feeColumnIndex = 14; // Start from column N (Fee 1 Amount) - after remarks column
+          
+          while (feeColumnIndex <= 21) { // Stop before bank charges columns (V and W)
+            const feeAmount = row.getCell(feeColumnIndex).value;
+            const feeDate = row.getCell(feeColumnIndex + 1).value;
+            
+            // Stop if both amount and date are empty
+            if ((!feeAmount || feeAmount === '') && (!feeDate || feeDate === '')) {
+              break;
+            }
+
+            let parsedAmount = 0;
+            if (feeAmount && feeAmount !== '') {
+              if (typeof feeAmount === 'number') {
+                parsedAmount = feeAmount;
+              } else if (typeof feeAmount === 'string') {
+                const cleanAmount = feeAmount.toString().replace(/[₹$,]/g, '').trim();
+                parsedAmount = parseFloat(cleanAmount) || 0;
+              }
+            }
+            
+            let parsedDate = null;
+            if (feeDate && feeDate !== '') {
+              if (feeDate instanceof Date) {
+                parsedDate = feeDate.toISOString().split('T')[0];
+              } else if (typeof feeDate === 'string') {
+                // Handle different date formats including "11.03.2025"
+                let dateStr = feeDate.toString().trim();
+                
+                // Convert "11.03.2025" to "2025-03-11" format
+                if (dateStr.match(/^\d{1,2}\.\d{1,2}\.\d{4}$/)) {
+                  const parts = dateStr.split('.');
+                  dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                }
+                
+                const dateObj = new Date(dateStr);
+                if (!isNaN(dateObj.getTime())) {
+                  parsedDate = dateObj.toISOString().split('T')[0];
+                }
+              }
+            }
+            
+            if (parsedAmount > 0 || parsedDate) {
+              fees.push({
+                amount: parsedAmount,
+                date: parsedDate
+              });
+            }
+            
+            // Move to next fee pair (amount + date)
+            feeColumnIndex += 2;
+          }
+
+          // Parse enquiry date
+          let parsedEnquiryDate = new Date();
+          if (date_of_enquiry) {
+            if (date_of_enquiry instanceof Date) {
+              parsedEnquiryDate = date_of_enquiry;
+            } else if (typeof date_of_enquiry === 'string') {
+              const dateObj = new Date(date_of_enquiry);
+              if (!isNaN(dateObj.getTime())) {
+                parsedEnquiryDate = dateObj;
+              }
+            }
+          }
+
+          const contactData = {
+            fullname,
+            email,
+            phone,
+            date_of_enquiry: parsedEnquiryDate,
+            source,
+            student_code,
+             course,  
+            course_name,
+            staff_name,
+            total_amount: parsedTotalAmount,
+            vilt_cilt: vilt_cilt.toString(),
+            outstanding: parsedOutstanding,
+            remarks: parsedRemarks,
+            fees,
+             bank_charges: parsedBankCharges, 
+            bank_charges_date: parsedBankChargesDate, 
+            excel_upload: 2
+          };
+
+          processedData.push(contactData);
+
+        } catch (rowError) {
+          console.error(`Error processing row ${rowNumber}:`, rowError);
+        }
+      });
+
+      // Save to database
+      for (const contactData of processedData) {
+        try {
+          const existing = await Contact.findOne({ phone: contactData.phone });
+          if (existing) {
+            skippedContacts.push({ phone: contactData.phone, reason: "Duplicate phone number" });
+            continue;
+          }
+
+          const newContact = new Contact(contactData);
+          await newContact.save();
+          insertedContacts.push(newContact);
+
+        } catch (saveError) {
+          console.error('Error saving contact:', saveError);
+          skippedContacts.push({ phone: contactData.phone, reason: "Save error: " + saveError.message });
+        }
+      }
+
+      // Format response
+      const formattedProcessedData = processedData.map(contact => ({
+        ...contact,
+        date_of_enquiry: contact.date_of_enquiry.toISOString().split('T')[0],
+        bank_charges_date: contact.bank_charges_date ? contact.bank_charges_date.toISOString().split('T')[0] : null
+      }));
+
+      // Clean up
+      fs.unlinkSync(req.file.path);
+
+      res.status(200).json({
+        status_code: 200,
+        message: "Contacts processed successfully",
+        insertedCount: insertedContacts.length,
+        skippedCount: skippedContacts.length,
+        skippedContacts: skippedContacts,
+        processedData: formattedProcessedData,
+        summary: {
+          totalRows: rowCount - 1,
+          successful: insertedContacts.length,
+          skipped: skippedContacts.length,
+          feesProcessed: formattedProcessedData.reduce((sum, contact) => sum + contact.fees.length, 0),
+          maxFeesPerContact: Math.max(...formattedProcessedData.map(contact => contact.fees.length), 0),
+          viltCiltTypes: [...new Set(formattedProcessedData.map(contact => contact.vilt_cilt).filter(Boolean))],
+          totalOutstanding: formattedProcessedData.reduce((sum, contact) => sum + contact.outstanding, 0),
+          totalBankCharges: formattedProcessedData.reduce((sum, contact) => sum + contact.bank_charges, 0) // Add bank charges summary
+        }
+      });
+
+    } catch (error) {
+      console.error('Excel upload error:', error);
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      res.status(500).json({ status_code: 500, message: error.message });
+    }
+  });
+};
+exports.getExcelUploadedContacts = async (req, res) => {
+  try {
+    const { 
+      searchTerm, 
+      startDate, 
+      endDate, 
+      page_size = 10, 
+      page_num = 1,
+      // Field filters
+      fullname,
+      email,
+      phone,
+      course,
+      course_name,
+      staff_name,
+      source,
+      vilt_cilt,
+      remarks,
+      bank_charges_min, // Add bank charges filters
+      bank_charges_max
+    } = req.body;
+
+    console.log('Search params received:', req.body); // Debug log
+
+    let condition = { excel_upload: 2, isDeleted: { $ne: true } };
+    const page = parseInt(page_num);
+    const limit = parseInt(page_size);
+    const skip = (page - 1) * limit;
+
+    // Build search conditions
+    if (searchTerm) {
+      condition.$or = [
+        { fullname: { $regex: searchTerm, $options: 'i' } },
+        { email: { $regex: searchTerm, $options: 'i' } },
+        { phone: { $regex: searchTerm, $options: 'i' } },
+         { course: { $regex: searchTerm, $options: 'i' } }, 
+        { course_name: { $regex: searchTerm, $options: 'i' } },
+        { staff_name: { $regex: searchTerm, $options: 'i' } },
+        { source: { $regex: searchTerm, $options: 'i' } },
+        { vilt_cilt: { $regex: searchTerm, $options: 'i' } },
+        { remarks: { $regex: searchTerm, $options: 'i' } },
+        { student_code: { $regex: searchTerm, $options: 'i' } }
+      ];
+    }
+
+    // Field-specific filters
+    if (fullname) condition.fullname = { $regex: fullname, $options: 'i' };
+    if (email) condition.email = { $regex: email, $options: 'i' };
+    if (phone) condition.phone = { $regex: phone, $options: 'i' };
+    if (course) condition.course = { $regex: course, $options: 'i' };
+    if (course_name) condition.course_name = { $regex: course_name, $options: 'i' };
+    if (staff_name) condition.staff_name = { $regex: staff_name, $options: 'i' };
+    if (source) condition.source = { $regex: source, $options: 'i' };
+    if (vilt_cilt) condition.vilt_cilt = { $regex: vilt_cilt, $options: 'i' };
+    if (remarks) condition.remarks = { $regex: remarks, $options: 'i' };
+
+    // Bank charges range filter
+    if (bank_charges_min !== undefined || bank_charges_max !== undefined) {
+      condition.bank_charges = {};
+      if (bank_charges_min !== undefined) condition.bank_charges.$gte = parseFloat(bank_charges_min);
+      if (bank_charges_max !== undefined) condition.bank_charges.$lte = parseFloat(bank_charges_max);
+    }
+
+    // Date range filter
+    if (startDate && endDate) {
+      condition.date_of_enquiry = {
+        $gte: new Date(startDate),
+        $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999))
+      };
+    } else if (startDate) {
+      condition.date_of_enquiry = { $gte: new Date(startDate) };
+    } else if (endDate) {
+      condition.date_of_enquiry = { $lte: new Date(endDate) };
+    }
+
+    console.log('Final query condition:', condition); // Debug log
+
+    // Get total count and data
+    const total = await Contact.countDocuments(condition);
+    const contacts = await Contact.find(condition)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    // Format dates for frontend
+    const formattedData = contacts.map(contact => {
+      let formattedDate = 'N/A';
+      let formattedBankChargesDate = 'N/A';
+      
+      if (contact.date_of_enquiry) {
+        const date = new Date(contact.date_of_enquiry);
+        if (!isNaN(date.getTime())) {
+          formattedDate = date.toISOString().split('T')[0];
+        }
+      }
+
+      if (contact.bank_charges_date) {
+        const bankDate = new Date(contact.bank_charges_date);
+        if (!isNaN(bankDate.getTime())) {
+          formattedBankChargesDate = bankDate.toISOString().split('T')[0];
+        }
+      }
+
+      return {
+        ...contact._doc,
+        date_of_enquiry: formattedDate,
+        bank_charges_date: formattedBankChargesDate
+      };
+    });
+
+       res.status(200).json({
+  status_code: 200,
+  message: "Excel uploaded contacts fetched successfully",
+  data: formattedData,
+  pagination: {
+    current_page: page,
+    total_pages: Math.ceil(total / limit),
+    total_items: total,        
+    items_per_page: limit      
+  }
+});
+  } catch (error) {
+    console.error("Error fetching Excel uploaded contacts:", error);
+    res.status(500).json({ status_code: 500, message: error.message });
   }
 };

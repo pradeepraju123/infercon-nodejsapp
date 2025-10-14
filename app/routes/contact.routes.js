@@ -12,7 +12,8 @@ module.exports = app => {
      // Download contact details
      router.post("/download", contact.download);
      router.get("/deleted", contact.getDeleted);
-     
+     router.post("/action/excelupload",contact.excelupload);
+    router.post("/get/excelupload",authenticateToken,contact.getExcelUploadedContacts) 
     router.post("/followup-leads", authenticateToken,contact.getFollowupLeads);
 
     router.post("/finalized",authenticateToken,contact.getFinalizedLeads)
@@ -43,6 +44,9 @@ module.exports = app => {
   router.delete("/:id/soft-delete", authenticateToken,contact.softDelete); // Replace hard delete with soft delete
   
   router.patch("/:id/restore", authenticateToken,contact.restore);
+
+
+  router.post("/get/excelupload",authenticateToken, contact.getExcelUploadedContacts);
 
     app.use('/api/v1/contact', router);
     
