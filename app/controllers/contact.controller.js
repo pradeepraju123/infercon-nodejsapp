@@ -821,22 +821,28 @@ exports.onAssigneeSelect = async (req, res) => {
 
 exports.getNonRegisteredContacts = async (req, res) => {
   try {
-    const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee,lead_status } = req.body;
+    const { searchTerm, start_date, end_date, sort_by, page_size, page_num, assignee, lead_status } = req.body;
     const isStaff = req.user?.userType === 'staff';
     const isRegularUser = req.user?.userType === 'user';
     const isAdmin = req.user?.userType === 'admin';
     
     console.log('Body Parameters for non-registered:', req.body);
     
-    let condition = { isRegistered: { $ne: 1 },isDeleted: { $ne: true }  }; // Only non-registered contacts
-      if (lead_status) {
+    let condition = { 
+      isRegistered: { $ne: 1 },
+      isDeleted: { $ne: true },
+      excel_upload: { $ne: 2 } // ALWAYS exclude Excel uploaded contacts
+    };
+    
+    if (lead_status) {
       condition.lead_status = lead_status;
     }
+    
     const page = parseInt(page_num) || 1;
     const limit = parseInt(page_size) || 10;
     const skip = (page - 1) * limit;
 
-    
+    // Rest of your existing code remains the same...
     if (isStaff) {
       const staff = await User.findById(req.user.userId);
       if (!staff) {
@@ -897,75 +903,56 @@ exports.getNonRegisteredContacts = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
-    // 🔍 ADD DEBUG LOGGING HERE
-    console.log('🔍 [BACKEND DEBUG] Raw database data:', data.map(item => ({
-      id: item._id,
-      name: item.fullname,
-      assigned_date: item.assigned_date,
-      assigned_time: item.assigned_time,
-      assignee: item.assignee
-    })));
-
     // Process the result to extract date and time from createdAt
-const formattedData = await Promise.all(data.map(async (item) => {
-  const createdAt = moment(item.createdAt).tz('Asia/Kolkata');
-  
-  let created_by_name = 'System';
-  
-  // Check if createdBy exists and is not 'System'
-  if (item.createdBy && item.createdBy !== 'System') {
-    // If it's a valid ObjectId format, try to find by ID
-    if (mongoose.Types.ObjectId.isValid(item.createdBy)) {
-      try {
-        const user_data = await User.findById(item.createdBy);
-        if (user_data) {
-          created_by_name = user_data.name;
-        }
-      } catch (err) {
-        console.error('Error fetching user by ID:', err);
-        created_by_name = item.createdBy; 
-      }
-    } else {
-      // If it's not an ObjectId, try to find by username or email
-      try {
-        const user_data = await User.findOne({
-          $or: [
-            { username: item.createdBy },
-            { email: item.createdBy },
-            { name: item.createdBy }
-          ]
-        });
-        if (user_data) {
-          created_by_name = user_data.name;
+    const formattedData = await Promise.all(data.map(async (item) => {
+      const createdAt = moment(item.createdAt).tz('Asia/Kolkata');
+      
+      let created_by_name = 'System';
+      
+      // Check if createdBy exists and is not 'System'
+      if (item.createdBy && item.createdBy !== 'System') {
+        if (mongoose.Types.ObjectId.isValid(item.createdBy)) {
+          try {
+            const user_data = await User.findById(item.createdBy);
+            if (user_data) {
+              created_by_name = user_data.name;
+            }
+          } catch (err) {
+            console.error('Error fetching user by ID:', err);
+            created_by_name = item.createdBy; 
+          }
         } else {
-          created_by_name = item.createdBy; // Use the username/email as fallback
+          try {
+            const user_data = await User.findOne({
+              $or: [
+                { username: item.createdBy },
+                { email: item.createdBy },
+                { name: item.createdBy }
+              ]
+            });
+            if (user_data) {
+              created_by_name = user_data.name;
+            } else {
+              created_by_name = item.createdBy;
+            }
+          } catch (err) {
+            console.error('Error fetching user by username/email:', err);
+            created_by_name = item.createdBy;
+          }
         }
-      } catch (err) {
-        console.error('Error fetching user by username/email:', err);
-        created_by_name = item.createdBy;
       }
-    }
-  }
 
-  // 🔍 FIX: Include assigned_date and assigned_time in the response
-  const formattedItem = {
-    ...item._doc,
-    created_date: createdAt.format('YYYY-MM-DD'),
-    created_time: createdAt.format('HH:mm:ss'),
-    created_by: created_by_name,
-    assigned_date: item.assigned_date,
-    assigned_time: item.assigned_time
-  };
+      const formattedItem = {
+        ...item._doc,
+        created_date: createdAt.format('YYYY-MM-DD'),
+        created_time: createdAt.format('HH:mm:ss'),
+        created_by: created_by_name,
+        assigned_date: item.assigned_date,
+        assigned_time: item.assigned_time
+      };
 
-  console.log('🔍 [BACKEND DEBUG] Formatted item:', {
-    id: formattedItem._id,
-    name: formattedItem.fullname,
-    assigned_date: formattedItem.assigned_date,
-    assigned_time: formattedItem.assigned_time
-  });
-
-  return formattedItem;
-}));
+      return formattedItem;
+    }));
 
     console.log('🔍 [BACKEND DEBUG] Final response data sample:', formattedData.slice(0, 2));
     
@@ -988,6 +975,7 @@ const formattedData = await Promise.all(data.map(async (item) => {
     });
   }
 };
+
 
 exports.softDelete = async (req, res) => {
   try {

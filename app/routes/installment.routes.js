@@ -12,6 +12,7 @@ router.post('/manual-setup',authenticateToken,installment.setupManualInstallment
 router.post('/manual-payment',authenticateToken,installment.payManualInstallment)
 router.put('/update-status',authenticateToken,installment.updateInstallmentStatus)
 router.put('/check-overdue/:contactId',authenticateToken, installment.updateOverdueInstallments);
+router.put("/update-assignee",authenticateToken,installment.updateAssignee);
 app.use('/api/v1/installments', router);
 }
 

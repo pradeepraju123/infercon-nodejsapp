@@ -8,8 +8,16 @@ module.exports = mongoose => {
         },
         assignedTo: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "users",
+            ref: "user",
             required: false
+        },
+         assigneeName: {
+            type: String,
+            default: ''
+        },
+        assignedDate: {
+            type: Date,
+            default: null
         },
         
         // All registration fields stored directly

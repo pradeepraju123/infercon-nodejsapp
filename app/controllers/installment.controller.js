@@ -2,6 +2,7 @@
 const db= require('../models')
 const Installment=db.installments
 const Contact = db.contact
+const User=db.users
 
 // Setup Installment Plan with all registration data
 exports.setupInstallmentPlan = async (req, res) => {
@@ -51,6 +52,36 @@ exports.setupInstallmentPlan = async (req, res) => {
                 message: "Contact not found"
             });
         }
+        let finalAssignedTo = req.body.assignedTo;
+let finalAssigneeName = '';
+
+if (finalAssignedTo) {
+  const staffUser = await User.findById(finalAssignedTo);
+  if (staffUser) {
+    finalAssigneeName = staffUser.name;
+  }
+} else if (contact.assignee) {
+  const staffUser = await User.findOne({ 
+    $or: [
+      { name: contact.assignee },
+      { username: contact.assignee }
+    ],
+    userType: "staff"
+  });
+  
+  if (staffUser) {
+    finalAssignedTo = staffUser._id;
+    finalAssigneeName = staffUser.name;
+  } else {
+    finalAssignedTo = req.user.userId;
+    const currentUser = await User.findById(req.user.userId);
+    finalAssigneeName = currentUser ? currentUser.name : req.user.username || 'Unknown';
+  }
+} else {
+  finalAssignedTo = req.user.userId;
+  const currentUser = await User.findById(req.user.userId);
+  finalAssigneeName = currentUser ? currentUser.name : req.user.username || 'Unknown';
+}
 
         // Validate amounts
         if (totalAmount <= 0 || numberOfInstallments <= 0) {
@@ -91,6 +122,9 @@ exports.setupInstallmentPlan = async (req, res) => {
                 email: contact.email || email,
                 phone: contact.phone || mobile
             },
+            assignedTo: finalAssignedTo,
+            assigneeName: finalAssigneeName,
+            assignedDate: new Date(),
             // Include all registration fields
             modeOfEducation: modeOfEducation,
             courses: courses,
@@ -113,7 +147,7 @@ exports.setupInstallmentPlan = async (req, res) => {
             currencyType: currencyType,
             feesCurrency: feesCurrency,
             document: document,
-            assignedTo: req.body.assignedTo || req.user.userId
+            // assignedTo: req.body.assignedTo || req.user.userId
         };
 
         // Create or update registration with all data
@@ -284,28 +318,50 @@ exports.getInstallmentDetails = async (req, res) => {
         });
     }
 };
+
 exports.getAllAccounts = async (req, res) => {
     try {
-        const { searchTerm, page_size, page_num, installmentType, status } = req.query;
+        const { searchTerm, page_size, page_num, installmentType, status, assignee } = req.query;
+        
+        console.log(' All Accounts Request Query:', req.query);
         
         const pageSize = parseInt(page_size, 10) || 10;
         const pageNum = parseInt(page_num, 10) || 1;
         const skip = (pageNum - 1) * pageSize;
 
         let condition = {};
+        
+        // Staff can only see their assigned accounts
         if (req.user.userType === "staff") {
             condition.assignedTo = req.user.userId;
         }
 
-        // Add search functionality
+        // Build search conditions
+        let searchConditions = [];
+        
+        // Regular search term (name, email, phone)
         if (searchTerm) {
-            condition.$or = [
+            searchConditions.push(
                 { 'contactDetails.name': { $regex: searchTerm, $options: 'i' } },
                 { 'contactDetails.email': { $regex: searchTerm, $options: 'i' } },
-                { 'contactDetails.phone': { $regex: searchTerm, $options: 'i' } }
-            ];
+                { 'contactDetails.phone': { $regex: searchTerm, $options: 'i' } },
+                { 'email': { $regex: searchTerm, $options: 'i' } },
+                { 'mobile': { $regex: searchTerm, $options: 'i' } }
+            );
         }
 
+        // Assignee-specific search (only for admin)
+        if (assignee && req.user.userType === "admin") {
+            searchConditions.push(
+                { 'assigneeName': { $regex: assignee, $options: 'i' } }
+            );
+        }
+
+        // Combine search conditions
+        if (searchConditions.length > 0) {
+            condition.$or = searchConditions;
+        }
+        
         // Filter by installment type
         if (installmentType && ['auto', 'manual'].includes(installmentType)) {
             condition.installmentType = installmentType;
@@ -315,6 +371,8 @@ exports.getAllAccounts = async (req, res) => {
         if (status && ['pending', 'partially_paid', 'completed', 'cancelled', 'overdue'].includes(status)) {
             condition.overallStatus = status;
         }
+
+        console.log('Final search condition:', condition);
 
         const accounts = await Installment.find(condition)
             .skip(skip)
@@ -335,6 +393,7 @@ exports.getAllAccounts = async (req, res) => {
             }
         });
     } catch (error) {
+        console.error("Error in getAllAccounts:", error);
         res.status(500).json({
             status_code: 500,
             message: error.message || "Error retrieving accounts"
@@ -425,6 +484,49 @@ exports.setupManualInstallmentPlan = async (req, res) => {
                 message: "Contact not found"
             });
         }
+        console.log(' Contact assignee:', contact.assignee);
+        console.log('Request assignedTo:', req.body.assignedTo);
+
+let finalAssignedTo = req.body.assignedTo;
+let finalAssigneeName = '';
+if (finalAssignedTo) {
+  // If assignedTo was provided, look up the user
+  const staffUser = await User.findById(finalAssignedTo);
+  if (staffUser) {
+    finalAssigneeName = staffUser.name;
+    console.log(' Using provided assignedTo:', staffUser.name, staffUser._id);
+  }
+} else if (contact.assignee) {
+  console.log('Looking up staff user by name:', contact.assignee);
+  
+  // Find staff user by name from contact.assignee
+  const staffUser = await User.findOne({ 
+    $or: [
+      { name: contact.assignee },
+      { username: contact.assignee }
+    ],
+    userType: "staff"
+  });
+  
+  if (staffUser) {
+    console.log(' Found staff user from contact:', staffUser.name, staffUser._id);
+    finalAssignedTo = staffUser._id;
+    finalAssigneeName = staffUser.name;
+  } else {
+    console.log(' Staff user not found, using current user as fallback');
+    finalAssignedTo = req.user.userId;
+    // Try to get current user's name
+    const currentUser = await User.findById(req.user.userId);
+    finalAssigneeName = currentUser ? currentUser.name : req.user.username || 'Unknown';
+  }
+} else {
+  finalAssignedTo = req.user.userId;
+  const currentUser = await User.findById(req.user.userId);
+  finalAssigneeName = currentUser ? currentUser.name : req.user.username || 'Unknown';
+  console.log('Using current user as fallback:', finalAssigneeName, finalAssignedTo);
+}
+
+console.log('Final assignment - assignedTo:', finalAssignedTo, 'assigneeName:', finalAssigneeName);
 
         // Validate manual installments
         const calculatedTotal = installments.reduce((sum, inst) => sum + inst.amount, 0);
@@ -527,6 +629,9 @@ exports.setupManualInstallmentPlan = async (req, res) => {
                 email: contact.email || email,
                 phone: contact.phone || mobile
             },
+            assignedTo: finalAssignedTo,
+  assigneeName: finalAssigneeName,
+  assignedDate: new Date(),
             // Include all registration fields
             modeOfEducation: modeOfEducation,
             courses: courses,
@@ -549,7 +654,7 @@ exports.setupManualInstallmentPlan = async (req, res) => {
             currencyType: currencyType,
             feesCurrency: feesCurrency,
             document: document,
-            assignedTo: req.body.assignedTo || req.user.userId
+            // assignedTo: req.body.assignedTo || req.user.userId
         };
 
         // Create or update registration
@@ -840,4 +945,63 @@ exports.updateInstallmentStatus = async (req, res) => {
             message: error.message || "Error updating installment status"
         });
     }
+};
+
+exports.updateAssignee = async (req, res) => {
+  try {
+    const { contactRef, assignee } = req.body;
+
+    if (!contactRef || !assignee) {
+      return res.status(400).json({
+        status_code: 400,
+        message: "contactRef and assignee are required"
+      });
+    }
+
+    // Find staff user by name to get their ObjectId
+    const User = db.users;
+    const staffUser = await User.findOne({ 
+      $or: [
+        { name: assignee },
+        { username: assignee }
+      ],
+      userType: "staff"
+    });
+
+    if (!staffUser) {
+      return res.status(404).json({
+        status_code: 404,
+        message: "Staff user not found"
+      });
+    }
+
+    const updatedAccount = await Installment.findOneAndUpdate(
+      { contactRef: contactRef },
+      { 
+        assignedTo: staffUser._id,        // Store ObjectId
+        assigneeName: staffUser.name,     // Store staff name as string
+        assignedDate: new Date()
+      },
+      { new: true }
+    );
+
+    if (!updatedAccount) {
+      return res.status(404).json({
+        status_code: 404,
+        message: "Account not found"
+      });
+    }
+
+    res.status(200).json({
+      status_code: 200,
+      message: "Assignee updated successfully",
+      data: updatedAccount
+    });
+  } catch (error) {
+    console.error('Error updating assignee:', error);
+    res.status(500).json({
+      status_code: 500,
+      message: "Error updating assignee"
+    });
+  }
 };
