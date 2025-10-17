@@ -323,7 +323,9 @@ exports.getAllAccounts = async (req, res) => {
     try {
         const { searchTerm, page_size, page_num, installmentType, status, assignee } = req.query;
         
-        console.log(' All Accounts Request Query:', req.query);
+        console.log('All Accounts Request Query:', req.query);
+        console.log('User Type:', req.user.userType);
+        console.log('User ID:', req.user.userId);
         
         const pageSize = parseInt(page_size, 10) || 10;
         const pageNum = parseInt(page_num, 10) || 1;
@@ -331,9 +333,13 @@ exports.getAllAccounts = async (req, res) => {
 
         let condition = {};
         
-        // Staff can only see their assigned accounts
+        // FIX: Only apply assignee filter for staff users
         if (req.user.userType === "staff") {
             condition.assignedTo = req.user.userId;
+            console.log('Staff filter applied - assignedTo:', req.user.userId);
+        } else if (req.user.userType === "admin") {
+            console.log('Admin user - no assignee filter applied');
+            // Admin can see all accounts, no assignee filter
         }
 
         // Build search conditions
@@ -352,9 +358,21 @@ exports.getAllAccounts = async (req, res) => {
 
         // Assignee-specific search (only for admin)
         if (assignee && req.user.userType === "admin") {
-            searchConditions.push(
-                { 'assigneeName': { $regex: assignee, $options: 'i' } }
-            );
+            console.log('🔍 Admin searching by assignee:', assignee);
+            // Find staff users by name and search by their ObjectId
+            const staffUsers = await User.find({
+                $or: [
+                    { name: { $regex: assignee, $options: 'i' } },
+                    { username: { $regex: assignee, $options: 'i' } }
+                ],
+                userType: "staff"
+            }).select('_id');
+            
+            const staffIds = staffUsers.map(user => user._id);
+            
+            if (staffIds.length > 0) {
+                searchConditions.push({ assignedTo: { $in: staffIds } });
+            }
         }
 
         // Combine search conditions
@@ -372,7 +390,7 @@ exports.getAllAccounts = async (req, res) => {
             condition.overallStatus = status;
         }
 
-        console.log('Final search condition:', condition);
+        console.log('Final search condition:', JSON.stringify(condition, null, 2));
 
         const accounts = await Installment.find(condition)
             .skip(skip)
@@ -380,6 +398,8 @@ exports.getAllAccounts = async (req, res) => {
             .sort({ createdAt: -1 });
 
         const totalItems = await Installment.countDocuments(condition);
+
+        console.log(`Found ${accounts.length} accounts out of ${totalItems} total`);
 
         res.status(200).json({
             status_code: 200,
@@ -400,7 +420,6 @@ exports.getAllAccounts = async (req, res) => {
         });
     }
 };
-
 exports.updateOverdueInstallments = async (req, res) => {
     try {
         const { contactId } = req.params;

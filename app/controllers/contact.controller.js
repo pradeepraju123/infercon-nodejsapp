@@ -1467,11 +1467,12 @@ exports.excelupload = async (req, res) => {
 
       const insertedContacts = [];
       const skippedContacts = [];
-      const processedData = [];
+      const updatedContacts = [];
+      const multiCourseStudents = new Map();
 
       let rowCount = 0;
 
-      // Process each row
+      // First pass: Group by student AND course (using name + phone + course as key)
       worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
         rowCount++;
         if (rowNumber === 1) return; // Skip header row
@@ -1485,28 +1486,28 @@ exports.excelupload = async (req, res) => {
 
           if (phoneCell) {
             if (typeof phoneCell === 'object' && phoneCell.text) {
-              phone = phoneCell.text.trim(); // for objects returned by exceljs
+              phone = phoneCell.text.trim();
             } else {
-              phone = phoneCell.toString().replace(/[^0-9+]/g, '').trim(); // remove non-numeric chars except '+'
+              phone = phoneCell.toString().replace(/[^0-9+]/g, '').trim();
             }
           }
 
           const date_of_enquiry = row.getCell(4).value;
           const source = row.getCell(5).value || '';
-         const student_code = row.getCell(6).value || '';
-const course = row.getCell(7).value || '';      // Add this line for "COURSE"
-const course_name = row.getCell(8).value || '';  // This is "COURSE NAME"
-const staff_name = row.getCell(9).value || '';
+          const student_code = row.getCell(6).value || '';
+          const course = row.getCell(7).value || '';
+          const course_name = row.getCell(8).value || '';
+          const staff_name = row.getCell(9).value || '';
           const total_amount = row.getCell(10).value || 0;
           const vilt_cilt = row.getCell(11).value || '';
           const outstanding = row.getCell(12).value || 0;
           const remarks = row.getCell(13).value || '';
-
           
-          const bank_charges = row.getCell(22)?.value || 0; 
-          const bank_charges_date = row.getCell(23)?.value || null; 
-          // Skip if no phone number
-          if (!phone) return;
+          const bank_charges = row.getCell(22)?.value || 0;
+          const bank_charges_date = row.getCell(23)?.value || null;
+
+          // Skip if no name
+          if (!fullname) return;
 
           // Parse total amount
           let parsedTotalAmount = 0;
@@ -1546,15 +1547,11 @@ const staff_name = row.getCell(9).value || '';
             if (bank_charges_date instanceof Date) {
               parsedBankChargesDate = bank_charges_date;
             } else if (typeof bank_charges_date === 'string') {
-              // Handle different date formats including "11.03.2025"
               let dateStr = bank_charges_date.toString().trim();
-              
-              // Convert "11.03.2025" to "2025-03-11" format
               if (dateStr.match(/^\d{1,2}\.\d{1,2}\.\d{4}$/)) {
                 const parts = dateStr.split('.');
                 dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
               }
-              
               const dateObj = new Date(dateStr);
               if (!isNaN(dateObj.getTime())) {
                 parsedBankChargesDate = dateObj;
@@ -1582,15 +1579,14 @@ const staff_name = row.getCell(9).value || '';
             }
           }
 
-          // FIX: Update fee columns to start from column 14 (after remarks)
+          // Process fees
           const fees = [];
-          let feeColumnIndex = 14; // Start from column N (Fee 1 Amount) - after remarks column
+          let feeColumnIndex = 14;
           
-          while (feeColumnIndex <= 21) { // Stop before bank charges columns (V and W)
+          while (feeColumnIndex <= 21) {
             const feeAmount = row.getCell(feeColumnIndex).value;
             const feeDate = row.getCell(feeColumnIndex + 1).value;
             
-            // Stop if both amount and date are empty
             if ((!feeAmount || feeAmount === '') && (!feeDate || feeDate === '')) {
               break;
             }
@@ -1610,15 +1606,11 @@ const staff_name = row.getCell(9).value || '';
               if (feeDate instanceof Date) {
                 parsedDate = feeDate.toISOString().split('T')[0];
               } else if (typeof feeDate === 'string') {
-                // Handle different date formats including "11.03.2025"
                 let dateStr = feeDate.toString().trim();
-                
-                // Convert "11.03.2025" to "2025-03-11" format
                 if (dateStr.match(/^\d{1,2}\.\d{1,2}\.\d{4}$/)) {
                   const parts = dateStr.split('.');
                   dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
                 }
-                
                 const dateObj = new Date(dateStr);
                 if (!isNaN(dateObj.getTime())) {
                   parsedDate = dateObj.toISOString().split('T')[0];
@@ -1629,11 +1621,11 @@ const staff_name = row.getCell(9).value || '';
             if (parsedAmount > 0 || parsedDate) {
               fees.push({
                 amount: parsedAmount,
-                date: parsedDate
+                date: parsedDate,
+                payment_type: `Fee-${Math.floor((feeColumnIndex - 14) / 2) + 1}`
               });
             }
             
-            // Move to next fee pair (amount + date)
             feeColumnIndex += 2;
           }
 
@@ -1650,58 +1642,210 @@ const staff_name = row.getCell(9).value || '';
             }
           }
 
-          const contactData = {
-            fullname,
-            email,
-            phone,
-            date_of_enquiry: parsedEnquiryDate,
-            source,
-            student_code,
-             course,  
+          // Generate unique key: student + course + enquiry date (to handle same course multiple times)
+          const uniqueKey = phone ? 
+            `${fullname}_${phone}_${course}_${parsedEnquiryDate.getTime()}` : 
+            `${fullname}_${course}_${parsedEnquiryDate.getTime()}`;
+
+          // Course information object with unique identifier
+          const courseInfo = {
+            course,
             course_name,
+            student_code,
             staff_name,
             total_amount: parsedTotalAmount,
             vilt_cilt: vilt_cilt.toString(),
             outstanding: parsedOutstanding,
+            fees: fees,
+            bank_charges: parsedBankCharges,
+            bank_charges_date: parsedBankChargesDate,
+            date_of_enquiry: parsedEnquiryDate,
+            source: source,
             remarks: parsedRemarks,
-            fees,
-             bank_charges: parsedBankCharges, 
-            bank_charges_date: parsedBankChargesDate, 
-            excel_upload: 2
+            unique_key: uniqueKey // Add unique identifier for this course enrollment
           };
 
-          processedData.push(contactData);
+          // Add to multi-course map
+          if (!multiCourseStudents.has(uniqueKey)) {
+            multiCourseStudents.set(uniqueKey, {
+              fullname,
+              email,
+              phone,
+              date_of_enquiry: parsedEnquiryDate,
+              source,
+              remarks: parsedRemarks,
+              courses: [course],
+              course_details: [courseInfo]
+            });
+          } else {
+            // If same unique key exists, merge the fees (for duplicate rows in Excel)
+            const existingStudent = multiCourseStudents.get(uniqueKey);
+            existingStudent.course_details[0].fees = [
+              ...existingStudent.course_details[0].fees,
+              ...fees
+            ];
+          }
 
         } catch (rowError) {
           console.error(`Error processing row ${rowNumber}:`, rowError);
+          skippedContacts.push({ 
+            name: `Row ${rowNumber}`, 
+            phone: 'N/A',
+            reason: "Row processing error: " + rowError.message 
+          });
         }
       });
 
-      // Save to database
-      for (const contactData of processedData) {
+      // Process each unique course enrollment
+      for (const [uniqueKey, studentData] of multiCourseStudents) {
         try {
-          const existing = await Contact.findOne({ phone: contactData.phone });
-          if (existing) {
-            skippedContacts.push({ phone: contactData.phone, reason: "Duplicate phone number" });
-            continue;
+          let existing = null;
+          
+          // Find existing contact by phone OR name+email
+          if (studentData.phone) {
+            existing = await Contact.findOne({ phone: studentData.phone });
+          } else {
+            existing = await Contact.findOne({ 
+              fullname: studentData.fullname,
+              email: studentData.email 
+            });
           }
 
-          const newContact = new Contact(contactData);
-          await newContact.save();
-          insertedContacts.push(newContact);
+          if (existing) {
+            // Check if this exact course enrollment already exists
+            const existingCourseDetails = existing.course_details || [];
+            const isDuplicateEnrollment = existingCourseDetails.some(
+              detail => detail.unique_key === uniqueKey
+            );
+
+            if (isDuplicateEnrollment) {
+              skippedContacts.push({ 
+                name: studentData.fullname, 
+                phone: studentData.phone || 'No phone',
+                course: studentData.courses[0],
+                reason: "Duplicate course enrollment with same enquiry date",
+                enquiry_date: studentData.date_of_enquiry.toISOString().split('T')[0]
+              });
+              continue;
+            }
+
+            // Add new course enrollment to existing student
+            const newCourseDetail = studentData.course_details[0];
+            
+            // Update courses array (avoid duplicates in the main courses list)
+            if (!existing.courses.includes(studentData.courses[0])) {
+              existing.courses.push(studentData.courses[0]);
+            }
+            
+            // Update course field (comma-separated string of unique courses)
+            existing.course = Array.from(new Set(existing.courses)).join(', ');
+            
+            // Initialize course_details array if it doesn't exist
+            if (!existing.course_details) {
+              existing.course_details = [];
+            }
+            
+            // Add the new course enrollment details
+            existing.course_details.push(newCourseDetail);
+            
+            // Update enquiry_dates array to track all enquiry dates
+            if (!existing.enquiry_dates) {
+              existing.enquiry_dates = [];
+            }
+            
+            // Add new enquiry date if it doesn't exist
+            const enquiryDateStr = studentData.date_of_enquiry.toISOString().split('T')[0];
+            if (!existing.enquiry_dates.includes(enquiryDateStr)) {
+              existing.enquiry_dates.push(enquiryDateStr);
+            }
+            
+            // Sort enquiry dates chronologically
+            existing.enquiry_dates.sort((a, b) => new Date(a) - new Date(b));
+            
+            // Update the main date_of_enquiry field with the latest enquiry date
+            if (existing.enquiry_dates.length > 0) {
+              existing.date_of_enquiry = new Date(existing.enquiry_dates[existing.enquiry_dates.length - 1]);
+            }
+            
+            // Update financial totals (sum across all course enrollments)
+            existing.total_amount = (existing.total_amount || 0) + (newCourseDetail.total_amount || 0);
+            existing.outstanding = (existing.outstanding || 0) + (newCourseDetail.outstanding || 0);
+            existing.bank_charges = (existing.bank_charges || 0) + (newCourseDetail.bank_charges || 0);
+            
+            // Merge fees from all course enrollments
+            const allFees = [...(existing.fees || []), ...(newCourseDetail.fees || [])];
+            existing.fees = allFees;
+            
+            // Update other fields if not present
+            if (!existing.student_code && newCourseDetail.student_code) {
+              existing.student_code = newCourseDetail.student_code;
+            }
+            if (!existing.course_name && newCourseDetail.course_name) {
+              existing.course_name = newCourseDetail.course_name;
+            }
+            if (!existing.staff_name && newCourseDetail.staff_name) {
+              existing.staff_name = newCourseDetail.staff_name;
+            }
+            if (!existing.vilt_cilt && newCourseDetail.vilt_cilt) {
+              existing.vilt_cilt = newCourseDetail.vilt_cilt;
+            }
+            
+            existing.excel_upload = 2;
+            
+            await existing.save();
+            updatedContacts.push({
+              contact: existing,
+              addedEnrollment: {
+                course: studentData.courses[0],
+                enquiry_date: studentData.date_of_enquiry,
+                total_amount: newCourseDetail.total_amount,
+                fees_count: newCourseDetail.fees.length
+              },
+              totalEnrollments: existing.course_details.length,
+              enquiryDatesCount: existing.enquiry_dates.length
+            });
+            
+          } else {
+            // Create new contact with this course enrollment
+            const courseDetail = studentData.course_details[0];
+            
+            const newContact = new Contact({
+              fullname: studentData.fullname,
+              email: studentData.email,
+              phone: studentData.phone || '',
+              date_of_enquiry: studentData.date_of_enquiry, // Main enquiry date (latest)
+              enquiry_dates: [studentData.date_of_enquiry.toISOString().split('T')[0]], // Array of all enquiry dates
+              source: studentData.source,
+              remarks: studentData.remarks,
+              courses: studentData.courses,
+              student_code: courseDetail?.student_code || '',
+              course: studentData.courses.join(', '),
+              course_name: courseDetail?.course_name || '',
+              staff_name: courseDetail?.staff_name || '',
+              total_amount: courseDetail?.total_amount || 0,
+              vilt_cilt: courseDetail?.vilt_cilt || '',
+              outstanding: courseDetail?.outstanding || 0,
+              fees: courseDetail?.fees || [],
+              bank_charges: courseDetail?.bank_charges || 0,
+              bank_charges_date: courseDetail?.bank_charges_date || null,
+              course_details: studentData.course_details, // Store all course details
+              excel_upload: 2
+            });
+
+            await newContact.save();
+            insertedContacts.push(newContact);
+          }
 
         } catch (saveError) {
           console.error('Error saving contact:', saveError);
-          skippedContacts.push({ phone: contactData.phone, reason: "Save error: " + saveError.message });
+          skippedContacts.push({ 
+            name: studentData.fullname, 
+            phone: studentData.phone || 'No phone',
+            course: studentData.courses[0],
+            reason: "Save error: " + saveError.message 
+          });
         }
       }
-
-      // Format response
-      const formattedProcessedData = processedData.map(contact => ({
-        ...contact,
-        date_of_enquiry: contact.date_of_enquiry.toISOString().split('T')[0],
-        bank_charges_date: contact.bank_charges_date ? contact.bank_charges_date.toISOString().split('T')[0] : null
-      }));
 
       // Clean up
       fs.unlinkSync(req.file.path);
@@ -1709,19 +1853,53 @@ const staff_name = row.getCell(9).value || '';
       res.status(200).json({
         status_code: 200,
         message: "Contacts processed successfully",
-        insertedCount: insertedContacts.length,
-        skippedCount: skippedContacts.length,
-        skippedContacts: skippedContacts,
-        processedData: formattedProcessedData,
         summary: {
           totalRows: rowCount - 1,
-          successful: insertedContacts.length,
-          skipped: skippedContacts.length,
-          feesProcessed: formattedProcessedData.reduce((sum, contact) => sum + contact.fees.length, 0),
-          maxFeesPerContact: Math.max(...formattedProcessedData.map(contact => contact.fees.length), 0),
-          viltCiltTypes: [...new Set(formattedProcessedData.map(contact => contact.vilt_cilt).filter(Boolean))],
-          totalOutstanding: formattedProcessedData.reduce((sum, contact) => sum + contact.outstanding, 0),
-          totalBankCharges: formattedProcessedData.reduce((sum, contact) => sum + contact.bank_charges, 0) // Add bank charges summary
+          uniqueEnrollments: multiCourseStudents.size,
+          studentsWithMultipleEnrollments: Array.from(multiCourseStudents.values())
+            .filter(student => student.courses.length > 0)
+            .length,
+          successful: {
+            newContacts: insertedContacts.length,
+            updatedContacts: updatedContacts.length,
+            total: insertedContacts.length + updatedContacts.length
+          },
+          skipped: skippedContacts.length
+        },
+        details: {
+          insertedContacts: insertedContacts.map(contact => ({
+            id: contact._id,
+            name: contact.fullname,
+            phone: contact.phone,
+            courses: contact.courses,
+            student_code: contact.student_code,
+            enquiry_dates: contact.enquiry_dates,
+            enrollments: contact.course_details?.length || 1
+          })),
+          updatedContacts: updatedContacts.map(item => ({
+            id: item.contact._id,
+            name: item.contact.fullname,
+            phone: item.contact.phone,
+            addedEnrollment: item.addedEnrollment,
+            totalEnrollments: item.totalEnrollments,
+            enquiryDatesCount: item.enquiryDatesCount,
+            allCourses: item.contact.courses,
+            enquiry_dates: item.contact.enquiry_dates
+          })),
+          skippedContacts: skippedContacts
+        },
+        examples: {
+          multipleEnrollments: updatedContacts
+            .filter(item => item.totalEnrollments > 1)
+            .slice(0, 3)
+            .map(item => ({
+              name: item.contact.fullname,
+              phone: item.contact.phone,
+              totalEnrollments: item.totalEnrollments,
+              enquiryDatesCount: item.enquiryDatesCount,
+              courses: item.contact.courses,
+              enquiry_dates: item.contact.enquiry_dates
+            }))
         }
       });
 
@@ -1734,6 +1912,8 @@ const staff_name = row.getCell(9).value || '';
     }
   });
 };
+
+
 exports.getExcelUploadedContacts = async (req, res) => {
   try {
     const { 
