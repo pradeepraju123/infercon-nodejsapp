@@ -2,6 +2,7 @@
 const db= require('../models')
 const Installment=db.installments
 const Contact = db.contact
+const User=db.users
 
 // Setup Installment Plan with all registration data
 exports.setupInstallmentPlan = async (req, res) => {
@@ -51,6 +52,36 @@ exports.setupInstallmentPlan = async (req, res) => {
                 message: "Contact not found"
             });
         }
+        let finalAssignedTo = req.body.assignedTo;
+let finalAssigneeName = '';
+
+if (finalAssignedTo) {
+  const staffUser = await User.findById(finalAssignedTo);
+  if (staffUser) {
+    finalAssigneeName = staffUser.name;
+  }
+} else if (contact.assignee) {
+  const staffUser = await User.findOne({ 
+    $or: [
+      { name: contact.assignee },
+      { username: contact.assignee }
+    ],
+    userType: "staff"
+  });
+  
+  if (staffUser) {
+    finalAssignedTo = staffUser._id;
+    finalAssigneeName = staffUser.name;
+  } else {
+    finalAssignedTo = req.user.userId;
+    const currentUser = await User.findById(req.user.userId);
+    finalAssigneeName = currentUser ? currentUser.name : req.user.username || 'Unknown';
+  }
+} else {
+  finalAssignedTo = req.user.userId;
+  const currentUser = await User.findById(req.user.userId);
+  finalAssigneeName = currentUser ? currentUser.name : req.user.username || 'Unknown';
+}
 
         // Validate amounts
         if (totalAmount <= 0 || numberOfInstallments <= 0) {
@@ -91,6 +122,9 @@ exports.setupInstallmentPlan = async (req, res) => {
                 email: contact.email || email,
                 phone: contact.phone || mobile
             },
+            assignedTo: finalAssignedTo,
+            assigneeName: finalAssigneeName,
+            assignedDate: new Date(),
             // Include all registration fields
             modeOfEducation: modeOfEducation,
             courses: courses,
@@ -113,7 +147,7 @@ exports.setupInstallmentPlan = async (req, res) => {
             currencyType: currencyType,
             feesCurrency: feesCurrency,
             document: document,
-            assignedTo: req.body.assignedTo || req.user.userId
+            // assignedTo: req.body.assignedTo || req.user.userId
         };
 
         // Create or update registration with all data
@@ -123,7 +157,7 @@ exports.setupInstallmentPlan = async (req, res) => {
             { 
                 upsert: true,
                 new: true,
-                runValidators: true // This ensures validation rules are applied
+                runValidators: true 
             }
         );
 
@@ -142,7 +176,7 @@ exports.setupInstallmentPlan = async (req, res) => {
         });
     }
 };
-// Process Installment Payment
+
 exports.payInstallment = async (req, res) => {
     try {
         const { installmentId, paidAmount, paymentMethod, reference } = req.body;
@@ -213,7 +247,7 @@ exports.payInstallment = async (req, res) => {
     }
 };
 
-// Get Installment Details
+
 exports.getInstallmentDetails = async (req, res) => {
     try {
         const { contactId } = req.params;
@@ -226,29 +260,49 @@ exports.getInstallmentDetails = async (req, res) => {
             });
         }
 
-        // Calculate summary
+        
+        const totalPaid = installment.installments.reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
+        const pendingInstallmentsCount = installment.installments.filter(inst => 
+            ['pending', 'overdue', 'partially_paid'].includes(inst.status)
+        ).length;
+        const remainingAmount = installment.totalAmount - totalPaid;
+
+    
         const paidInstallments = installment.installments.filter(i => i.status === "paid");
         const pendingInstallments = installment.installments.filter(i => i.status === "pending");
         const overdueInstallments = installment.installments.filter(i => i.status === "overdue");
         const partiallyPaidInstallments = installment.installments.filter(i => i.status === "partially_paid");
-        
-        const totalPaid = paidInstallments.reduce((sum, inst) => sum + inst.amount, 0) +
-                         partiallyPaidInstallments.reduce((sum, inst) => sum + inst.paidAmount, 0);
+
+    
+        const nextDueInstallment = installment.installments.find(i => 
+            ['pending', 'overdue', 'partially_paid'].includes(i.status)
+        );
 
         res.status(200).json({
             status_code: 200,
             message: "Installment details retrieved",
             data: {
-                installment,
+                installment: {
+                    ...installment.toObject(),
+                    calculatedPendingAmount: remainingAmount,
+                    calculatedPendingInstallments: pendingInstallmentsCount
+                },
                 summary: {
                     totalPaid,
-                    remainingAmount: installment.pendingAmount,
+                    remainingAmount,
                     paidInstallments: paidInstallments.length,
                     pendingInstallments: pendingInstallments.length,
                     overdueInstallments: overdueInstallments.length,
                     partiallyPaidInstallments: partiallyPaidInstallments.length,
-                    nextPaymentDue: installment.installments.find(i => ['pending', 'overdue'].includes(i.status))?.amount
+                    nextPaymentDue: nextDueInstallment?.amount,
+                    nextDueDate: nextDueInstallment?.dueDate
                 },
+                // Add payment history here
+                paymentHistory: installment.paymentHistory,
+                installmentsWithPaymentDates: installment.installments.map(inst => ({
+                    ...inst.toObject(),
+                    allPaymentDates: inst.paymentDates || [] 
+                })),
                 paidInstallments,
                 pendingInstallments,
                 overdueInstallments,
@@ -267,26 +321,65 @@ exports.getInstallmentDetails = async (req, res) => {
 
 exports.getAllAccounts = async (req, res) => {
     try {
-        const { searchTerm, page_size, page_num, installmentType, status } = req.query;
+        const { searchTerm, page_size, page_num, installmentType, status, assignee } = req.query;
+        
+        console.log('All Accounts Request Query:', req.query);
+        console.log('User Type:', req.user.userType);
+        console.log('User ID:', req.user.userId);
         
         const pageSize = parseInt(page_size, 10) || 10;
         const pageNum = parseInt(page_num, 10) || 1;
         const skip = (pageNum - 1) * pageSize;
 
         let condition = {};
+        
+        // FIX: Only apply assignee filter for staff users
         if (req.user.userType === "staff") {
             condition.assignedTo = req.user.userId;
+            console.log('Staff filter applied - assignedTo:', req.user.userId);
+        } else if (req.user.userType === "admin") {
+            console.log('Admin user - no assignee filter applied');
+            // Admin can see all accounts, no assignee filter
         }
 
-        // Add search functionality
+        // Build search conditions
+        let searchConditions = [];
+        
+        // Regular search term (name, email, phone)
         if (searchTerm) {
-            condition.$or = [
+            searchConditions.push(
                 { 'contactDetails.name': { $regex: searchTerm, $options: 'i' } },
                 { 'contactDetails.email': { $regex: searchTerm, $options: 'i' } },
-                { 'contactDetails.phone': { $regex: searchTerm, $options: 'i' } }
-            ];
+                { 'contactDetails.phone': { $regex: searchTerm, $options: 'i' } },
+                { 'email': { $regex: searchTerm, $options: 'i' } },
+                { 'mobile': { $regex: searchTerm, $options: 'i' } }
+            );
         }
 
+        // Assignee-specific search (only for admin)
+        if (assignee && req.user.userType === "admin") {
+            console.log('🔍 Admin searching by assignee:', assignee);
+            // Find staff users by name and search by their ObjectId
+            const staffUsers = await User.find({
+                $or: [
+                    { name: { $regex: assignee, $options: 'i' } },
+                    { username: { $regex: assignee, $options: 'i' } }
+                ],
+                userType: "staff"
+            }).select('_id');
+            
+            const staffIds = staffUsers.map(user => user._id);
+            
+            if (staffIds.length > 0) {
+                searchConditions.push({ assignedTo: { $in: staffIds } });
+            }
+        }
+
+        // Combine search conditions
+        if (searchConditions.length > 0) {
+            condition.$or = searchConditions;
+        }
+        
         // Filter by installment type
         if (installmentType && ['auto', 'manual'].includes(installmentType)) {
             condition.installmentType = installmentType;
@@ -297,12 +390,16 @@ exports.getAllAccounts = async (req, res) => {
             condition.overallStatus = status;
         }
 
+        console.log('Final search condition:', JSON.stringify(condition, null, 2));
+
         const accounts = await Installment.find(condition)
             .skip(skip)
             .limit(pageSize)
             .sort({ createdAt: -1 });
 
         const totalItems = await Installment.countDocuments(condition);
+
+        console.log(`Found ${accounts.length} accounts out of ${totalItems} total`);
 
         res.status(200).json({
             status_code: 200,
@@ -316,14 +413,13 @@ exports.getAllAccounts = async (req, res) => {
             }
         });
     } catch (error) {
+        console.error("Error in getAllAccounts:", error);
         res.status(500).json({
             status_code: 500,
             message: error.message || "Error retrieving accounts"
         });
     }
 };
-
-// Check and Update Overdue Installments (NEW)
 exports.updateOverdueInstallments = async (req, res) => {
     try {
         const { contactId } = req.params;
@@ -367,8 +463,7 @@ exports.setupManualInstallmentPlan = async (req, res) => {
         const { 
             contactId, 
             totalAmount,
-            installments, // Array of manual installments
-            // Include all registration fields
+            installments, 
             modeOfEducation,
             courses,
             firstname,
@@ -400,7 +495,7 @@ exports.setupManualInstallmentPlan = async (req, res) => {
             });
         }
 
-        // Find the contact
+        
         const contact = await Contact.findById(contactId);
         if (!contact) {
             return res.status(404).json({
@@ -408,6 +503,49 @@ exports.setupManualInstallmentPlan = async (req, res) => {
                 message: "Contact not found"
             });
         }
+        console.log(' Contact assignee:', contact.assignee);
+        console.log('Request assignedTo:', req.body.assignedTo);
+
+let finalAssignedTo = req.body.assignedTo;
+let finalAssigneeName = '';
+if (finalAssignedTo) {
+  // If assignedTo was provided, look up the user
+  const staffUser = await User.findById(finalAssignedTo);
+  if (staffUser) {
+    finalAssigneeName = staffUser.name;
+    console.log(' Using provided assignedTo:', staffUser.name, staffUser._id);
+  }
+} else if (contact.assignee) {
+  console.log('Looking up staff user by name:', contact.assignee);
+  
+  // Find staff user by name from contact.assignee
+  const staffUser = await User.findOne({ 
+    $or: [
+      { name: contact.assignee },
+      { username: contact.assignee }
+    ],
+    userType: "staff"
+  });
+  
+  if (staffUser) {
+    console.log(' Found staff user from contact:', staffUser.name, staffUser._id);
+    finalAssignedTo = staffUser._id;
+    finalAssigneeName = staffUser.name;
+  } else {
+    console.log(' Staff user not found, using current user as fallback');
+    finalAssignedTo = req.user.userId;
+    // Try to get current user's name
+    const currentUser = await User.findById(req.user.userId);
+    finalAssigneeName = currentUser ? currentUser.name : req.user.username || 'Unknown';
+  }
+} else {
+  finalAssignedTo = req.user.userId;
+  const currentUser = await User.findById(req.user.userId);
+  finalAssigneeName = currentUser ? currentUser.name : req.user.username || 'Unknown';
+  console.log('Using current user as fallback:', finalAssigneeName, finalAssignedTo);
+}
+
+console.log('Final assignment - assignedTo:', finalAssignedTo, 'assigneeName:', finalAssigneeName);
 
         // Validate manual installments
         const calculatedTotal = installments.reduce((sum, inst) => sum + inst.amount, 0);
@@ -418,32 +556,101 @@ exports.setupManualInstallmentPlan = async (req, res) => {
             });
         }
 
-        // Process manual installments
-        const processedInstallments = installments.map(inst => ({
-            amount: inst.amount,
-            dueDate: new Date(inst.dueDate),
-            status: inst.status || "pending",
-            paymentDate: inst.paymentDate ? new Date(inst.paymentDate) : null,
-            customAmount: true,
-            customDueDate: true,
-            paidAmount: inst.paidAmount || 0,
-            notes: inst.notes || ""
-        }));
+    
+        const processedInstallments = installments.map(inst => {
+            const installmentObj = {
+                amount: inst.amount,
+                dueDate: new Date(inst.dueDate),
+                status: inst.status || "pending",
+                paymentDate: inst.paymentDate ? new Date(inst.paymentDate) : null,
+                customAmount: true,
+                customDueDate: true,
+                paidAmount: inst.paidAmount || 0,
+                notes: inst.notes || "",
+                due_amount: inst.amount - (inst.paidAmount || 0),
+                paymentDates:[]
+            };
+
+            
+             if (inst.paymentDates && Array.isArray(inst.paymentDates)) {
+                installmentObj.paymentDates = inst.paymentDates.map(payment => ({
+                    date: new Date(payment.date),
+                    amount: payment.amount,
+                    paymentMethod: payment.paymentMethod || 'manual_setup',
+                    reference: payment.reference || `SETUP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    notes: payment.notes || "Payment during setup"
+                }));
+            } else if (inst.paidAmount && inst.paidAmount > 0) {
+                 installmentObj.paymentDates = [{
+                    date: inst.paymentDate ? new Date(inst.paymentDate) : new Date(),
+                    amount: inst.paidAmount,
+                    paymentMethod: 'manual_setup',
+                    reference: `SETUP_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    notes: inst.notes || "Initial payment during setup"
+                }];
+            }
+                 else {
+                installmentObj.paymentDates = []; // Initialize empty array
+            }
+
+            return installmentObj;
+        });
+
+        // Calculate totals
+        const totalPaid = processedInstallments.reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
+        const pendingAmount = totalAmount - totalPaid;
+        const pendingInstallments = processedInstallments.filter(inst => inst.status !== 'paid').length;
+
+        // Create payment history
+        const paymentHistory = [];
+        processedInstallments.forEach((inst, index) => {
+            if (inst.paidAmount > 0) {
+                const dueAmountBefore = inst.amount;
+                const dueAmountAfter = inst.amount - inst.paidAmount;
+                const paymentType = inst.paidAmount >= inst.amount ? 'full' : 'partial';
+                
+                paymentHistory.push({
+                    amount: inst.paidAmount,
+                    date: inst.paymentDate || new Date(),
+                    paymentMethod: 'manual_setup',
+                    reference: `SETUP_${Date.now()}_${index}`,
+                    installmentIndex: index,
+                    notes: inst.notes || "",
+                    due_amount_after_payment: dueAmountAfter,
+                    payment_type: paymentType,
+                    previous_due_amount: dueAmountBefore,
+                    installment_amount: inst.amount,
+                    remaining_balance: pendingAmount
+                });
+            }
+        });
+
+        
+        let overallStatus = "pending";
+        if (pendingAmount <= 0) {
+            overallStatus = "completed";
+        } else if (totalPaid > 0 && pendingAmount < totalAmount) {
+            overallStatus = "partially_paid";
+        }
 
         // Create registration data object
         const InstallmentData = {
             contactRef: contactId,
             totalAmount: totalAmount,
-            pendingAmount: totalAmount,
-            pendingInstallments: installments.length,
+            pendingAmount: pendingAmount,
+            pendingInstallments: pendingInstallments,
             installmentType: "manual",
             installments: processedInstallments,
-            overallStatus: "pending",
+            paymentHistory: paymentHistory,
+            overallStatus: overallStatus,
             contactDetails: {
                 name: contact.fullname || `${firstname} ${lastname}`,
                 email: contact.email || email,
                 phone: contact.phone || mobile
             },
+            assignedTo: finalAssignedTo,
+  assigneeName: finalAssigneeName,
+  assignedDate: new Date(),
             // Include all registration fields
             modeOfEducation: modeOfEducation,
             courses: courses,
@@ -466,7 +673,7 @@ exports.setupManualInstallmentPlan = async (req, res) => {
             currencyType: currencyType,
             feesCurrency: feesCurrency,
             document: document,
-            assignedTo: req.body.assignedTo || req.user.userId
+            // assignedTo: req.body.assignedTo || req.user.userId
         };
 
         // Create or update registration
@@ -489,18 +696,19 @@ exports.setupManualInstallmentPlan = async (req, res) => {
             }
         });
     } catch (error) {
+        console.error("Error in setupManualInstallmentPlan:", error);
         res.status(500).json({
             status_code: 500,
-            message: error.message || "Error setting up manual installment plan"
+            message: error.message || "Error setting up manual installment plan",
+            error_details: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 };
 
-// Process Manual Installment Payment (NEW)
 exports.payManualInstallment = async (req, res) => {
     try {
         const { installmentId, paidAmount, paymentMethod, reference, installmentIndex, notes } = req.body;
-        
+
         if (!installmentId || !paidAmount || installmentIndex === undefined) {
             return res.status(400).json({
                 status_code: 400,
@@ -526,50 +734,100 @@ exports.payManualInstallment = async (req, res) => {
 
         const targetInstallment = installment.installments[installmentIndex];
 
-        // Check if already fully paid
-        if (targetInstallment.status === "paid") {
+        // Prevent overpayment
+        const currentPaidAmount = targetInstallment.paidAmount || 0;
+        const remainingAmount = targetInstallment.amount - currentPaidAmount;
+        if (paidAmount > remainingAmount) {
             return res.status(400).json({
                 status_code: 400,
-                message: "Installment already fully paid"
+                message: `Payment amount (${paidAmount}) exceeds remaining amount (${remainingAmount})`
             });
         }
 
-        // Validate payment amount
-        if (paidAmount <= 0) {
-            return res.status(400).json({
-                status_code: 400,
-                message: "Payment amount must be positive"
-            });
+        const dueAmountBeforePayment = targetInstallment.amount - currentPaidAmount;
+        const dueAmountAfterPayment = dueAmountBeforePayment - paidAmount;
+        const newPaidAmount = currentPaidAmount + paidAmount;
+        
+        let paymentType = 'partial';
+        if (newPaidAmount >= targetInstallment.amount) {
+            paymentType = 'full';
         }
 
-        const remainingAmount = targetInstallment.amount - targetInstallment.paidAmount;
+        // CRITICAL FIX: Ensure paymentDates array exists and add the payment
+        if (!targetInstallment.paymentDates) {
+            targetInstallment.paymentDates = [];
+        }
 
-        // Update the specific installment
-        if (paidAmount >= remainingAmount) {
-            // Full payment
+        // Create the payment record
+        const newPayment = {
+            date: new Date(),
+            amount: paidAmount,
+            paymentMethod: paymentMethod || 'cash',
+            reference: reference || `PAY_${Date.now()}`,
+            notes: notes || ""
+        };
+
+        // Push the new payment and mark as modified
+        targetInstallment.paymentDates.push(newPayment);
+        
+        // CRITICAL: Mark the installments array as modified
+        installment.markModified('installments');
+
+        // Update installment details
+        targetInstallment.paymentDate = new Date();
+        targetInstallment.paidAmount = newPaidAmount;
+        targetInstallment.due_amount = dueAmountAfterPayment;
+
+        // Update installment status
+        if (targetInstallment.paidAmount >= targetInstallment.amount) {
             targetInstallment.status = "paid";
             targetInstallment.paymentDate = new Date();
-            targetInstallment.paidAmount = targetInstallment.amount;
+            targetInstallment.due_amount = 0;
         } else {
-            // Partial payment
             targetInstallment.status = "partially_paid";
-            targetInstallment.paidAmount += paidAmount;
         }
 
-        // Update payment history
-        installment.paymentHistory.push({
+        if (notes) {
+            targetInstallment.notes = notes;
+        }
+
+        // Create payment history record
+        const paymentRecord = {
             amount: paidAmount,
             date: new Date(),
-            paymentMethod: paymentMethod,
-            reference: reference,
+            paymentMethod: paymentMethod || 'cash',
+            reference: reference || `PAY_${Date.now()}`,
             installmentIndex: installmentIndex,
-            notes: notes || ""
-        });
+            notes: notes || "",
+            due_amount_after_payment: dueAmountAfterPayment,
+            payment_type: paymentType,
+            previous_due_amount: dueAmountBeforePayment,
+            installment_amount: targetInstallment.amount,
+            remaining_balance: installment.pendingAmount - paidAmount
+        };
+
+        installment.paymentHistory.push(paymentRecord);
+
+        // Recalculate totals
+        const totalPaid = installment.installments.reduce((sum, inst) => sum + (inst.paidAmount || 0), 0);
+        installment.pendingAmount = installment.totalAmount - totalPaid;
+        installment.pendingInstallments = installment.installments.filter(inst => inst.status !== 'paid').length;
+
+        // Update overall status
+        if (installment.pendingAmount <= 0) {
+            installment.overallStatus = "completed";
+        } else {
+            const today = new Date();
+            const hasOverdue = installment.installments.some(inst => 
+                inst.status !== 'paid' && new Date(inst.dueDate) < today
+            );
+            installment.overallStatus = hasOverdue ? "overdue" : "partially_paid";
+        }
 
         installment.lastPaymentAmount = paidAmount;
         installment.lastPaymentDate = new Date();
 
-        // Save will trigger pre-save hook to update pendingAmount, pendingInstallments, overallStatus
+        // Save the document
         await installment.save();
 
         res.status(200).json({
@@ -579,10 +837,13 @@ exports.payManualInstallment = async (req, res) => {
                 installment,
                 paidInstallment: targetInstallment,
                 remainingAmount: installment.pendingAmount,
-                remainingInstallments: installment.pendingInstallments
+                remainingInstallments: installment.pendingInstallments,
+                due_amount: targetInstallment.due_amount,
+                paymentHistory: installment.paymentHistory
             }
         });
     } catch (error) {
+        console.error("Error in payManualInstallment:", error);
         res.status(500).json({
             status_code: 500,
             message: error.message || "Error processing manual installment payment"
@@ -591,12 +852,19 @@ exports.payManualInstallment = async (req, res) => {
 };
 exports.updateInstallmentStatus = async (req, res) => {
     try {
-        const { installmentId, installmentIndex, status, paymentDate, amount, notes } = req.body;
+        const { installmentId, installmentIndex, status, paymentDate, amount, notes, paidAmount, dueDate, paymentMethod, reference } = req.body;
         
         if (!installmentId || installmentIndex === undefined || !status) {
             return res.status(400).json({
                 status_code: 400,
                 message: "installmentId, installmentIndex, and status are required"
+            });
+        }
+
+        if (amount === undefined || dueDate === undefined) {
+            return res.status(400).json({
+                status_code: 400,
+                message: "amount and dueDate are required"
             });
         }
 
@@ -626,6 +894,28 @@ exports.updateInstallmentStatus = async (req, res) => {
 
         const targetInstallment = installment.installments[installmentIndex];
         const oldStatus = targetInstallment.status;
+        const oldPaidAmount = targetInstallment.paidAmount || 0;
+
+        
+        if (paidAmount !== undefined && paidAmount !== oldPaidAmount) {
+            const paymentDifference = paidAmount - oldPaidAmount;
+            
+            if (paymentDifference > 0) {
+                const newDueAmount = amount - paidAmount;
+                
+                installment.paymentHistory.push({
+                    amount: paymentDifference,
+                    date: new Date(),
+                    paymentMethod: paymentMethod || 'manual_update',
+                    reference: reference || `UPDATE_${Date.now()}`,
+                    installmentIndex: installmentIndex,
+                    notes: notes || "",
+                    due_amount_after_payment: newDueAmount,
+                    previous_paid_amount: oldPaidAmount,
+                    new_paid_amount: paidAmount
+                });
+            }
+        }
 
         // Update installment
         targetInstallment.status = status;
@@ -633,23 +923,29 @@ exports.updateInstallmentStatus = async (req, res) => {
         if (status === "paid") {
             targetInstallment.paymentDate = paymentDate ? new Date(paymentDate) : new Date();
             targetInstallment.paidAmount = targetInstallment.amount;
+            targetInstallment.due_amount = 0;
         } else if (status === "partially_paid") {
-            targetInstallment.paidAmount = targetInstallment.paidAmount || 0;
+            targetInstallment.paidAmount = paidAmount || targetInstallment.paidAmount || 0;
+            targetInstallment.due_amount = targetInstallment.amount - targetInstallment.paidAmount;
         } else {
             targetInstallment.paidAmount = 0;
             targetInstallment.paymentDate = null;
+            targetInstallment.due_amount = targetInstallment.amount;
         }
         
         if (amount !== undefined) {
             targetInstallment.amount = amount;
             targetInstallment.customAmount = true;
+            if (targetInstallment.status === "partially_paid") {
+                targetInstallment.due_amount = targetInstallment.amount - (targetInstallment.paidAmount || 0);
+            }
         }
         
         if (notes !== undefined) {
             targetInstallment.notes = notes;
         }
 
-        // Save will trigger pre-save hook to update all calculated fields
+
         await installment.save();
 
         res.status(200).json({
@@ -668,4 +964,63 @@ exports.updateInstallmentStatus = async (req, res) => {
             message: error.message || "Error updating installment status"
         });
     }
+};
+
+exports.updateAssignee = async (req, res) => {
+  try {
+    const { contactRef, assignee } = req.body;
+
+    if (!contactRef || !assignee) {
+      return res.status(400).json({
+        status_code: 400,
+        message: "contactRef and assignee are required"
+      });
+    }
+
+    // Find staff user by name to get their ObjectId
+    const User = db.users;
+    const staffUser = await User.findOne({ 
+      $or: [
+        { name: assignee },
+        { username: assignee }
+      ],
+      userType: "staff"
+    });
+
+    if (!staffUser) {
+      return res.status(404).json({
+        status_code: 404,
+        message: "Staff user not found"
+      });
+    }
+
+    const updatedAccount = await Installment.findOneAndUpdate(
+      { contactRef: contactRef },
+      { 
+        assignedTo: staffUser._id,        // Store ObjectId
+        assigneeName: staffUser.name,     // Store staff name as string
+        assignedDate: new Date()
+      },
+      { new: true }
+    );
+
+    if (!updatedAccount) {
+      return res.status(404).json({
+        status_code: 404,
+        message: "Account not found"
+      });
+    }
+
+    res.status(200).json({
+      status_code: 200,
+      message: "Assignee updated successfully",
+      data: updatedAccount
+    });
+  } catch (error) {
+    console.error('Error updating assignee:', error);
+    res.status(500).json({
+      status_code: 500,
+      message: "Error updating assignee"
+    });
+  }
 };
