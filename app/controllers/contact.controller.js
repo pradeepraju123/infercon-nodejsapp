@@ -511,34 +511,62 @@ exports.sendLeadDetailsToStaff = async (req, res) => {
 
 exports.addComment = async (req, res) => {
   try {
-    const contactId = req.params.id;  // Get contact ID from URL
-    const { texts, createdBy } = req.body;  // Get comment data and creator's name
+    const contactId = req.params.id;
+    const { texts } = req.body;
 
     // Validate input
     if (!texts) {
       return res.status(400).json({ message: "Comment text is required" });
     }
 
-    // Add the new comment with creator's name and timestamp
+    // Get user info from authenticated request
+    let createdByName = 'System';
+    let createdById = null;
+
+    if (req.user && req.user.userId) {
+      try {
+        const user = await User.findById(req.user.userId);
+        if (user) {
+          createdByName = user.name || user.username || user.email || 'User';
+          createdById = user._id;
+        } else {
+          // If user not found, use token info
+          createdByName = req.user.name || req.user.username || req.user.email || 'User';
+          createdById = req.user.userId;
+        }
+      } catch (userError) {
+        console.error('Error fetching user:', userError);
+        createdByName = req.user.name || req.user.username || req.user.email || 'User';
+        createdById = req.user.userId;
+      }
+    }
+
+    // Add the new comment with proper user information
     const updatedContact = await Contact.findByIdAndUpdate(
       contactId,
       {
         $push: {
           comments: {
             texts,
-            createdBy: createdBy || 'Anonymous',  // Use provided name or default to 'Anonymous'
-            // createdAt is added automatically
+            createdBy: createdByName,
+            createdById: createdById,
+            createdAt: new Date()
           }
         }
       },
-      { new: true }  // Return the updated document
+      { new: true }
     );
+
+    if (!updatedContact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
 
     res.status(200).json({
       message: "Comment added successfully",
       comments: updatedContact.comments
     });
   } catch (err) {
+    console.error("Error adding comment:", err);
     res.status(500).json({ message: "Error adding comment" });
   }
 };
@@ -549,13 +577,68 @@ exports.getComments = async (req, res) => {
     if (!contact) {
       return res.status(404).json({ message: "Contact not found" });
     }
-    // Sort comments in memory (newest first)
+
+    // Sort comments 
     const sortedComments = contact.comments.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    //  comments with user information
+    const enhancedComments = await Promise.all(
+      sortedComments.map(async (comment) => {
+        let finalCreatedBy = comment.createdBy || 'System';
+        
+        // If comment has createdById, try to get user name from database
+        if (comment.createdById && mongoose.Types.ObjectId.isValid(comment.createdById)) {
+          try {
+            const user = await User.findById(comment.createdById);
+            if (user) {
+              finalCreatedBy = user.name || user.username || user.email || 'User';
+            }
+          } catch (err) {
+            console.error('Error fetching user by ID for comment:', err);
+          }
+        }
+        // If createdBy is an ObjectId , look it up
+        else if (comment.createdBy && mongoose.Types.ObjectId.isValid(comment.createdBy)) {
+          try {
+            const user = await User.findById(comment.createdBy);
+            if (user) {
+              finalCreatedBy = user.name || user.username || user.email || 'User';
+            }
+          } catch (err) {
+            console.error('Error fetching user by ID from createdBy:', err);
+          }
+        }
+        // If createdBy is an email or username but we want to show proper name
+        else if (comment.createdBy && comment.createdBy !== 'System' && comment.createdBy !== 'Anonymous') {
+          try {
+            const user = await User.findOne({
+              $or: [
+                { email: comment.createdBy },
+                { username: comment.createdBy },
+                { name: comment.createdBy }
+              ]
+            });
+            if (user && user.name) {
+              finalCreatedBy = user.name;
+            }
+          } catch (err) {
+            console.error('Error fetching user by email/username:', err);
+          }
+        }
+
+        return {
+          ...comment._doc,
+          createdBy: finalCreatedBy
+        };
+      })
+    );
+
     res.status(200).json({
       message: "Comments retrieved successfully",
-      comments: sortedComments
+      comments: enhancedComments
     });
   } catch (err) {
+    console.error('Error retrieving comments:', err);
     res.status(500).json({ message: "Error retrieving comments" });
   }
 };

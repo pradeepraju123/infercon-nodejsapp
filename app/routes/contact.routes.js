@@ -30,9 +30,9 @@ module.exports = app => {
     
     router.post("/action/send-lead-details",contact.sendLeadDetailsToStaff);
 
-    router.post('/contacts/:id/comments', contact.addComment);
+    router.post('/contacts/:id/comments',authenticateToken, contact.addComment);
 
-   router.get('/contacts/:id/comments', contact.getComments);
+   router.get('/contacts/:id/comments', authenticateToken,contact.getComments);
 
   router.post("/:id/mark-registered", contact.markAsRegistered); // Mark a lead as registered
    
