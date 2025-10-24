@@ -36,6 +36,10 @@ app.get("/",async (req, res) => {
   res.json({ message: "Welcome to Infercon." });
 });
 
+app.get("/execution-function",async (req, res) => {
+  res.json({stirer_frequency: 2, execution_time : 30});
+});
+
 require("./app/routes/blog.routes.js")(app);
 require("./app/routes/generaldata.routes.js")(app);
 require("./app/routes/services.routes.js")(app);
